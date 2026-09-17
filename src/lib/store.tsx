@@ -98,13 +98,16 @@ export function StoreProvider({ children }: { children: ReactNode }) {
   const [ready, setReady] = useState(false);
 
   useEffect(() => {
-    try {
-      const raw = localStorage.getItem(KEY);
-      if (raw) setState(JSON.parse(raw) as AppState);
-    } catch {
-      /* keep seed */
-    }
-    setReady(true);
+    const id = requestAnimationFrame(() => {
+      try {
+        const raw = localStorage.getItem(KEY);
+        if (raw) setState(JSON.parse(raw) as AppState);
+      } catch {
+        /* keep seed */
+      }
+      setReady(true);
+    });
+    return () => cancelAnimationFrame(id);
   }, []);
 
   useEffect(() => {
