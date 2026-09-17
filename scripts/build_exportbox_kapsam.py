@@ -10,6 +10,7 @@ from reportlab.lib.styles import ParagraphStyle, getSampleStyleSheet
 from reportlab.lib.units import mm
 from reportlab.pdfbase import pdfmetrics
 from reportlab.pdfbase.ttfonts import TTFont
+from PIL import Image as PILImage
 from reportlab.platypus import (
     Image,
     KeepTogether,
@@ -123,8 +124,8 @@ def table(data, col_w, header=True, gold_last=False):
         ("VALIGN", (0, 0), (-1, -1), "TOP"),
         ("LEFTPADDING", (0, 0), (-1, -1), 7),
         ("RIGHTPADDING", (0, 0), (-1, -1), 7),
-        ("TOPPADDING", (0, 0), (-1, -1), 6),
-        ("BOTTOMPADDING", (0, 0), (-1, -1), 6),
+        ("TOPPADDING", (0, 0), (-1, -1), 4),
+        ("BOTTOMPADDING", (0, 0), (-1, -1), 4),
         ("GRID", (0, 0), (-1, -1), 0.3, GRID),
         ("BACKGROUND", (0, 1), (-1, -1), white),
     ]
@@ -151,28 +152,49 @@ def table(data, col_w, header=True, gold_last=False):
     return t
 
 
-def screen_block(st, title, path, note, phone=False):
+def fitted_image(path, max_w, max_h):
+    with PILImage.open(path) as pi:
+        iw, ih = pi.size
+    scale = min(max_w / iw, max_h / ih)
+    im = Image(str(path), width=iw * scale, height=ih * scale)
+    im.hAlign = "CENTER"
+    return im
+
+
+def screen_cell(st, title, path, note, max_w, max_h):
     img_path = TASLAK / path
     if not img_path.exists():
         return [p(st, "Body", f"<i>Görsel eksik: {path}</i>")]
-    max_w = 72 * mm if phone else 170 * mm
-    im = Image(str(img_path), width=max_w, height=max_w * 1.6 if phone else max_w * 0.56)
-    im.hAlign = "CENTER"
-    # keep aspect via PIL
-    from PIL import Image as PILImage
+    return [p(st, "H2", title), fitted_image(img_path, max_w, max_h), p(st, "Cap", note)]
 
-    with PILImage.open(img_path) as pi:
-        iw, ih = pi.size
-    scale = max_w / iw
-    dh = ih * scale
-    max_h = 175 * mm if phone else 105 * mm
-    if dh > max_h:
-        scale = max_h / ih
-        max_w = iw * scale
-        dh = max_h
-    im = Image(str(img_path), width=max_w, height=dh)
-    im.hAlign = "CENTER"
-    return KeepTogether([p(st, "H2", title), im, p(st, "Cap", note)])
+
+def screen_pair(st, items, usable, phone=True, admin_h=None):
+    """İki görseli aynı sayfada yan yana (telefon) veya alt alta (panel) yerleştir."""
+    col_w = usable / 2 - 4
+    if phone:
+        cells = []
+        for title, fn, note, _ in items:
+            cells.append(screen_cell(st, title, fn, note, col_w, 118 * mm))
+        while len(cells) < 2:
+            cells.append([Spacer(1, 1)])
+        t = Table([cells], colWidths=[usable / 2, usable / 2])
+        t.setStyle(
+            TableStyle(
+                [
+                    ("VALIGN", (0, 0), (-1, -1), "TOP"),
+                    ("LEFTPADDING", (0, 0), (-1, -1), 4),
+                    ("RIGHTPADDING", (0, 0), (-1, -1), 4),
+                    ("TOPPADDING", (0, 0), (-1, -1), 0),
+                    ("BOTTOMPADDING", (0, 0), (-1, -1), 0),
+                ]
+            )
+        )
+        return KeepTogether([t])
+    max_h = admin_h if admin_h is not None else 68 * mm
+    flows = []
+    for title, fn, note, _ in items:
+        flows += screen_cell(st, title, fn, note, usable, max_h)
+    return KeepTogether(flows)
 
 
 def build():
@@ -281,10 +303,12 @@ def build():
             "slot kilitler, yol yardım çağırır, işini izler, aksesuar talep eder, kuponunu cüzdanında tutar. "
             "İnsan sohbeti varsayılan kanal değildir; <i>Taleplerim</i> otomatik durum kutusudur.",
         ),
-        p(st, "H2", "3.1 Menüler"),
     ]
     story.append(
-        table(
+        KeepTogether(
+            [
+                p(st, "H2", "3.1 Menüler"),
+                table(
             [
                 [p(st, "CellH", "Menü"), p(st, "CellH", "İşlev")],
                 [p(st, "Cell", "Ana"), p(st, "Cell", "Araç kartı, hızlı hizmetler, aktif iş yüzdesi")],
@@ -301,6 +325,8 @@ def build():
                 [p(st, "Cell", "Profil"), p(st, "Cell", "Araç, iletişim, bildirim tercihleri (KVKK)")],
             ],
             [38 * mm, usable - 38 * mm],
+                )
+            ]
         )
     )
     story += [
@@ -457,61 +483,69 @@ def build():
             ],
             colWidths=[usable / 2, usable / 2],
         ),
-        PageBreak(),
-        p(st, "HDoc", "EK A — ARAYÜZ TASLAKLARI"),
-        p(st, "Sub", "Müşteri menüleri ve yönetici sekmeleri · görsel ek"),
-        p(
-            st,
-            "Body",
-            "Aşağıdaki görseller ürün taslağıdır; üretim arayüzü piksel birebir olmak zorunda değildir. "
-            "Her sayfa Export Box antetli kâğıdındadır.",
-        ),
     ]
 
     customer = [
-        ("Ana sayfa", "musteri-ana.png", "Araç kartı, hızlı hizmetler, aktif iş. Alt menü: Ana, Hizmetler, Randevu, Takip, Profil.", True),
-        ("Hizmetler", "musteri-hizmetler.png", "Katalog; süre kartta, birim fiyat teklif belgesine bırakılır.", True),
-        ("Randevu", "musteri-randevu.png", "Slot, plaka, not, kupon alanı.", True),
-        ("Acil yol yardım", "musteri-yol-yardim.png", "Konum ve aciliyet; ekip durumu canlı.", True),
-        ("İş takibi", "musteri-is-takip.png", "Durum yüzdesi; temsilciye “bitti mi?” sorulmaz.", True),
-        ("Aksesuar", "musteri-aksesuar.png", "Stoklu ürün ızgarası ve talep.", True),
-        ("Taleplerim", "musteri-taleplerim.png", "Otomatik durum kutusu.", True),
-        ("Kampanyalar", "musteri-kampanyalar.png", "Aktif kampanya; kuponu al.", True),
-        ("Kuponlarım", "musteri-kuponlar.png", "Cüzdan: aktif / kullanıldı / doldu.", True),
-        ("Bildirimler", "musteri-bildirimler.png", "Kampanya, kupon hatırlatma, iş ve yol yardım.", True),
-        ("SSS", "musteri-sss.png", "Temsilci yükünü kesen sık sorular.", True),
-        ("Profil", "musteri-profil.png", "Araç ve bildirim anahtarları.", True),
+        ("Müşteri · Ana sayfa", "musteri-ana.png", "Araç kartı, hızlı hizmetler, aktif iş.", True),
+        ("Müşteri · Hizmetler", "musteri-hizmetler.png", "Katalog; süre kartta görünür.", True),
+        ("Müşteri · Randevu", "musteri-randevu.png", "Slot, plaka, not, kupon alanı.", True),
+        ("Müşteri · Yol yardım", "musteri-yol-yardim.png", "Konum, aciliyet, canlı ekip.", True),
+        ("Müşteri · İş takibi", "musteri-is-takip.png", "Durum yüzdesi; “bitti mi?” kapanır.", True),
+        ("Müşteri · Aksesuar", "musteri-aksesuar.png", "Stoklu ürün ve talep.", True),
+        ("Müşteri · Taleplerim", "musteri-taleplerim.png", "Otomatik durum kutusu.", True),
+        ("Müşteri · Kampanyalar", "musteri-kampanyalar.png", "Aktif kampanya; kuponu al.", True),
+        ("Müşteri · Kuponlarım", "musteri-kuponlar.png", "Aktif / kullanıldı / doldu.", True),
+        ("Müşteri · Bildirimler", "musteri-bildirimler.png", "Kampanya, kupon, iş, yol yardım.", True),
+        ("Müşteri · SSS", "musteri-sss.png", "Temsilci yükünü kesen sorular.", True),
+        ("Müşteri · Profil", "musteri-profil.png", "Araç ve bildirim anahtarları.", True),
     ]
     admin = [
-        ("Günün panosu", "isletme-gunun-panosu.png", "Sahibin sabah ekranı: iş, yol yardım, ciro göstergesi (rakamlar tasviridir, teklif değildir).", False),
-        ("İşler", "panel-isler.png", "Atölye kanbanı.", False),
-        ("Randevular", "panel-randevular.png", "Onay kuyruğu ve takvim.", False),
-        ("Yol yardım", "panel-yol-yardim.png", "Canlı birimler ve açık çağrılar.", False),
-        ("Müşteriler", "panel-musteriler.png", "CRM ve kupon ilişkisi.", False),
-        ("Personel", "panel-personel.png", "Vardiya ve yük.", False),
-        ("Stok", "panel-stok.png", "Lastik / aksesuar / kimyasal.", False),
-        ("Kampanyalar", "panel-kampanyalar.png", "Yayın, kitle, kupon bağlama.", False),
-        ("Kuponlar", "panel-kuponlar.png", "Kod envanteri ve kullanım.", False),
-        ("Gelir", "panel-gelir.png", "Kırılım görünümü; belgedeki rakamlar örnektir, fiyat teklifi değildir.", False),
-        ("Bildirimler", "panel-bildirimler.png", "Kampanya push ve kupon kuralları.", False),
+        ("Yönetici · Günün panosu", "isletme-gunun-panosu.png", "İş, yol yardım, bay durumu (rakamlar tasvir).", False),
+        ("Yönetici · İşler", "panel-isler.png", "Atölye kanbanı.", False),
+        ("Yönetici · Randevular", "panel-randevular.png", "Onay kuyruğu ve takvim.", False),
+        ("Yönetici · Yol yardım", "panel-yol-yardim.png", "Birimler ve açık çağrılar.", False),
+        ("Yönetici · Müşteriler", "panel-musteriler.png", "CRM ve kupon ilişkisi.", False),
+        ("Yönetici · Personel", "panel-personel.png", "Vardiya ve yük.", False),
+        ("Yönetici · Stok", "panel-stok.png", "Lastik / aksesuar / kimyasal.", False),
+        ("Yönetici · Kampanyalar", "panel-kampanyalar.png", "Yayın, kitle, kupon bağlama.", False),
+        ("Yönetici · Kuponlar", "panel-kuponlar.png", "Kod envanteri ve kullanım.", False),
+        ("Yönetici · Gelir", "panel-gelir.png", "Kırılım görünümü; teklif değildir.", False),
+        ("Yönetici · Bildirimler", "panel-bildirimler.png", "Kampanya push ve kupon kuralları.", False),
     ]
-
-    for title, fn, note, phone in customer:
-        story += [PageBreak(), screen_block(st, f"Müşteri · {title}", fn, note, phone=phone)]
-    for title, fn, note, phone in admin:
-        story += [PageBreak(), screen_block(st, f"Yönetici · {title}", fn, note, phone=phone)]
 
     story += [
         PageBreak(),
-        p(st, "H1", "Ek A kapanış"),
-        p(
-            st,
-            "Body",
-            "Export Box Bilişim ve Dış Ticaret Anonim Şirketi · Aşağı Öveçler Mah. 1322. Cad. No: 75/4 "
-            "Çankaya / Ankara · Başkent Vergi Dairesi 381 103 0529",
+        KeepTogether(
+            [
+                p(st, "HDoc", "EK A — ARAYÜZ TASLAKLARI"),
+                p(st, "Sub", "Müşteri menüleri ve yönetici sekmeleri"),
+                p(
+                    st,
+                    "Body",
+                    "Görseller ürün taslağıdır; üretim arayüzü piksel birebir olmak zorunda değildir. "
+                    f"Belge {DOC_NO} · {DOC_DATE} · teklif değildir.",
+                ),
+                screen_pair(st, customer[0:2], usable, phone=True),
+            ]
         ),
-        p(st, "Body", f"Belge {DOC_NO} · {DOC_DATE} · Teklif değildir."),
     ]
+    for i in range(2, len(customer), 2):
+        story.append(screen_pair(st, customer[i : i + 2], usable, phone=True))
+
+    story.append(
+        KeepTogether(
+            [
+                p(st, "H1", "Yönetici paneli sekmeleri"),
+                screen_pair(st, admin[0:2], usable, phone=False),
+            ]
+        )
+    )
+    i = 2
+    while i < len(admin):
+        take = 3 if (len(admin) - i) == 3 else 2
+        h = 48 * mm if take == 3 else 68 * mm
+        story.append(screen_pair(st, admin[i : i + take], usable, phone=False, admin_h=h))
+        i += take
 
     OUT.parent.mkdir(parents=True, exist_ok=True)
     doc = SimpleDocTemplate(
