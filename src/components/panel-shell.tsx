@@ -44,9 +44,20 @@ export function PanelShell({ children }: { children: React.ReactNode }) {
     if (ready && session.role !== "owner") router.replace("/giris?next=/panel");
   }, [ready, session.role, router]);
 
-  if (!ready || session.role !== "owner") {
+  if (!ready) {
     return (
       <div className="flex min-h-dvh items-center justify-center bg-[#0b0c0e] text-zinc-400">Yükleniyor…</div>
+    );
+  }
+
+  if (session.role !== "owner") {
+    return (
+      <div className="flex min-h-dvh flex-col items-center justify-center gap-4 bg-[#0b0c0e] px-4 text-center text-zinc-300">
+        <p>İşletme paneli için sahip girişi gerekir.</p>
+        <Link href="/giris?next=/panel" className="rounded-md bg-amber-400 px-4 py-2 text-sm font-medium text-black">
+          PIN ile gir (2580)
+        </Link>
+      </div>
     );
   }
 

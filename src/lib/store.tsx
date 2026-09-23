@@ -106,13 +106,16 @@ export function StoreProvider({ children }: { children: ReactNode }) {
         if (raw) {
           const parsed = JSON.parse(raw) as Partial<AppState>;
           const seed = buildSeed();
-          setState({
-            ...seed,
-            ...parsed,
-            coupons: parsed.coupons ?? seed.coupons,
-            campaignNotif: parsed.campaignNotif ?? true,
-            couponNotif: parsed.couponNotif ?? true,
-            session: parsed.session ?? seed.session,
+          setState((current) => {
+            const merged: AppState = {
+              ...seed,
+              ...parsed,
+              coupons: parsed.coupons ?? seed.coupons,
+              campaignNotif: parsed.campaignNotif ?? true,
+              couponNotif: parsed.couponNotif ?? true,
+              session: current.session.role !== "guest" ? current.session : (parsed.session ?? seed.session),
+            };
+            return merged;
           });
         }
       } catch {
@@ -138,14 +141,20 @@ export function StoreProvider({ children }: { children: ReactNode }) {
             customerId: "c-demo",
             name: DEMO.customerName,
           };
-      return { ...s, session };
+      const next = { ...s, session };
+      persist(next);
+      return next;
     });
     return true;
   }, []);
 
   const loginOwner = useCallback((pin: string) => {
     if (pin.trim() !== DEMO.ownerPin) return false;
-    setState((s) => ({ ...s, session: { role: "owner", name: "İşletme sahibi" } }));
+    setState((s) => {
+      const next = { ...s, session: { role: "owner" as const, name: "İşletme sahibi" } };
+      persist(next);
+      return next;
+    });
     return true;
   }, []);
 

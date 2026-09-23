@@ -12,12 +12,12 @@ import { DEMO } from "@/lib/catalog";
 import { useStore } from "@/lib/store";
 
 function LoginInner() {
-  const { loginCustomer, loginOwner, session, logout } = useStore();
+  const { loginCustomer, loginOwner, session, logout, ready } = useStore();
   const router = useRouter();
   const params = useSearchParams();
   const next = params.get("next") ?? "/panel";
   const [phone, setPhone] = useState(DEMO.customerPhone);
-  const [pin, setPin] = useState("");
+  const [pin, setPin] = useState(DEMO.ownerPin);
   const [err, setErr] = useState("");
 
   return (
@@ -43,11 +43,15 @@ function LoginInner() {
         className="space-y-4 rounded-xl border border-amber-500/20 bg-amber-500/5 p-6"
         onSubmit={(e) => {
           e.preventDefault();
+          if (!ready) {
+            setErr("Oturum henüz hazır değil, bir saniye sonra tekrar deneyin.");
+            return;
+          }
           if (!loginOwner(pin)) {
             setErr("PIN hatalı.");
             return;
           }
-          router.push(next.startsWith("/panel") ? next : "/panel");
+          router.push(next.startsWith("/") ? next : "/panel");
         }}
       >
         <h2 className="font-[family-name:var(--font-display)] text-xl uppercase">İşletme sahibi</h2>
