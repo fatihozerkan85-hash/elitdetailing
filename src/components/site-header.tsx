@@ -27,10 +27,10 @@ export function BrandMark({ href = "/" }: { href?: string }) {
   return (
     <Link href={href} className="flex shrink-0 items-center">
       <Image
-        src="/branding/elit-logo.png"
+        src="/branding/elit-logo-tr.png"
         alt="ELIT OTO DETAILING"
-        width={1098}
-        height={898}
+        width={1254}
+        height={1254}
         className="h-14 w-auto object-contain sm:h-16"
         priority
       />
@@ -140,10 +140,10 @@ export function SiteFooter() {
       <div className="mx-auto flex max-w-6xl flex-col gap-6 px-4 py-8 text-sm text-zinc-500 md:flex-row md:items-center md:justify-between">
         <div className="flex items-center gap-3">
           <Image
-            src="/branding/elit-logo.png"
+            src="/branding/elit-logo-tr.png"
             alt="ELIT OTO DETAILING"
-            width={1098}
-            height={898}
+            width={1254}
+            height={1254}
             className="h-24 w-auto object-contain"
           />
           <div>

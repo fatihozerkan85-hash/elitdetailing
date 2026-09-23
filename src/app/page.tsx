@@ -42,10 +42,10 @@ export default function HomePage() {
             <p className="text-[11px] tracking-[0.35em] text-amber-300/90 uppercase">Ankara · premium detailing</p>
             <div className="mt-3 flex items-center gap-3 sm:gap-5">
               <Image
-                src="/branding/elit-logo.png"
+                src="/branding/elit-logo-tr.png"
                 alt=""
-                width={1098}
-                height={898}
+                width={1254}
+                height={1254}
                 className="h-20 w-auto shrink-0 object-contain sm:h-28 lg:h-32"
                 priority
               />
