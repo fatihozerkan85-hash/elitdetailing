@@ -5,7 +5,6 @@ import Link from "next/link";
 import { usePathname } from "next/navigation";
 import { Menu, Shield, Siren } from "lucide-react";
 import type { ReactNode } from "react";
-import { ElitMark } from "@/components/elit-mark";
 import { buttonVariants } from "@/components/ui/button";
 import { Sheet, SheetContent, SheetHeader, SheetTitle, SheetTrigger } from "@/components/ui/sheet";
 import { BRAND } from "@/lib/catalog";
@@ -26,12 +25,15 @@ const links = [
 
 export function BrandMark({ href = "/" }: { href?: string }) {
   return (
-    <Link href={href} className="flex min-w-0 items-center gap-2.5">
-      <ElitMark className="h-9 w-8 shrink-0" />
-      <span className="flex min-w-0 flex-col leading-none">
-        <span className="truncate text-[13px] font-bold tracking-[0.2em] text-zinc-50">ELIT DETAILING</span>
-        <span className="mt-1 text-[10px] font-medium tracking-[0.18em] text-zinc-500 uppercase">Ankara</span>
-      </span>
+    <Link href={href} className="flex shrink-0 items-center">
+      <Image
+        src="/branding/elit-logo.png"
+        alt="ELIT OTO DETAILING"
+        width={1106}
+        height={906}
+        className="h-14 w-auto object-contain sm:h-16"
+        priority
+      />
     </Link>
   );
 }
@@ -47,8 +49,8 @@ export function SiteHeader({ variant = "public" }: { variant?: "public" | "panel
   const unreadN = notifications.filter((n) => !n.read).length;
 
   return (
-    <header className="sticky top-0 z-40 border-b border-white/10 bg-[#0b0c0e]/85 backdrop-blur-md">
-      <div className="mx-auto flex h-16 max-w-6xl items-center justify-between gap-3 px-4">
+    <header className="sticky top-0 z-40 border-b border-white/10 bg-[#0b0c0e]/90 backdrop-blur-md">
+      <div className="mx-auto flex h-[4.75rem] max-w-6xl items-center justify-between gap-3 px-4 sm:h-20">
         <BrandMark href={variant === "panel" ? "/panel" : "/"} />
 
         {variant === "public" && (
@@ -136,10 +138,15 @@ export function SiteFooter() {
   return (
     <footer className="mt-auto border-t border-white/10 bg-[#08090b]">
       <div className="mx-auto flex max-w-6xl flex-col gap-6 px-4 py-8 text-sm text-zinc-500 md:flex-row md:items-center md:justify-between">
-        <div className="flex items-start gap-3">
-          <ElitMark className="h-11 w-10 shrink-0" />
+        <div className="flex items-center gap-3">
+          <Image
+            src="/branding/elit-logo.png"
+            alt="ELIT OTO DETAILING"
+            width={1106}
+            height={906}
+            className="h-24 w-auto object-contain"
+          />
           <div>
-            <p className="text-sm font-bold tracking-[0.2em] text-zinc-200 uppercase">{BRAND.name}</p>
             <p className="mt-2 max-w-md text-xs leading-relaxed">{BRAND.note}</p>
             <p className="mt-2 text-xs">{BRAND.hours}</p>
             <a className="text-xs text-amber-400/90 hover:underline" href={BRAND.instagram} target="_blank" rel="noreferrer">
