@@ -11,6 +11,8 @@ npm run dev
 
 Adres: `http://127.0.0.1:43147`
 
+Canlı: [https://elitdetailing.vercel.app](https://elitdetailing.vercel.app)
+
 ## Demo
 
 | Rol | Giriş |
