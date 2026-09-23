@@ -39,10 +39,10 @@ export default function HomePage() {
         <div className="mx-auto grid max-w-6xl items-start gap-8 px-4 py-8 sm:py-12 lg:grid-cols-2 lg:py-20">
           <div>
             <p className="text-[11px] tracking-[0.35em] text-amber-300/90 uppercase">Ankara · premium detailing</p>
-            <h1 className="mt-3 font-[family-name:var(--font-display)] text-4xl leading-[0.95] font-semibold tracking-tight text-zinc-50 uppercase sm:text-6xl lg:text-7xl">
-              Elit
+            <h1 className="mt-3 font-[family-name:var(--font-display)] text-4xl leading-[0.95] font-semibold tracking-tight text-zinc-50 sm:text-6xl lg:text-7xl">
+              ELIT
               <br />
-              Detailing
+              DETAILING
             </h1>
             <p className="mt-4 max-w-md text-base text-zinc-400 sm:text-lg">{BRAND.tagline}</p>
             <p className="mt-3 max-w-lg text-sm leading-relaxed text-zinc-500">
