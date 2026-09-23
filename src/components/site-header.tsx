@@ -35,7 +35,7 @@ export function BrandMark({ href = "/" }: { href?: string }) {
         priority
       />
       <span className="flex min-w-0 flex-col leading-none">
-        <span className="truncate text-[13px] font-bold tracking-[0.2em] text-zinc-50 uppercase">Elit Detailing</span>
+        <span className="truncate text-[13px] font-bold tracking-[0.2em] text-zinc-50">ELIT DETAILING</span>
         <span className="mt-1 text-[10px] font-medium tracking-[0.18em] text-zinc-500 uppercase">Ankara</span>
       </span>
     </Link>
