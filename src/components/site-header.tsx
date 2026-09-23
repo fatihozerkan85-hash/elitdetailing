@@ -1,5 +1,6 @@
 "use client";
 
+import Image from "next/image";
 import Link from "next/link";
 import { usePathname } from "next/navigation";
 import { Menu, Shield, Siren } from "lucide-react";
@@ -24,15 +25,18 @@ const links = [
 
 export function BrandMark({ href = "/" }: { href?: string }) {
   return (
-    <Link href={href} className="flex items-center gap-3">
-      <span className="flex size-9 shrink-0 items-center justify-center rounded-md border border-amber-500/40 bg-gradient-to-br from-zinc-600 via-zinc-800 to-black text-[11px] font-semibold tracking-[0.18em] text-amber-200 shadow-[inset_0_1px_0_rgba(255,255,255,0.2)]">
-        {BRAND.short}
-      </span>
+    <Link href={href} className="flex min-w-0 items-center gap-2.5">
+      <Image
+        src="/branding/elit-mark.png"
+        alt=""
+        width={113}
+        height={96}
+        className="h-9 w-auto shrink-0 object-contain"
+        priority
+      />
       <span className="flex min-w-0 flex-col leading-none">
-        <span className="font-[family-name:var(--font-display)] truncate text-sm tracking-[0.22em] text-zinc-100 uppercase">
-          {BRAND.name}
-        </span>
-        <span className="mt-1 text-[10px] tracking-widest text-zinc-500 uppercase">Ankara · detailing</span>
+        <span className="truncate text-[13px] font-bold tracking-[0.2em] text-zinc-50 uppercase">Elit Detailing</span>
+        <span className="mt-1 text-[10px] font-medium tracking-[0.18em] text-zinc-500 uppercase">Ankara</span>
       </span>
     </Link>
   );
@@ -137,17 +141,32 @@ export function SiteHeader({ variant = "public" }: { variant?: "public" | "panel
 export function SiteFooter() {
   return (
     <footer className="mt-auto border-t border-white/10 bg-[#08090b]">
-      <div className="mx-auto flex max-w-6xl flex-col gap-4 px-4 py-8 text-sm text-zinc-500 md:flex-row md:justify-between">
-        <div>
-          <p className="font-[family-name:var(--font-display)] tracking-[0.2em] text-zinc-300 uppercase">{BRAND.name}</p>
-          <p className="mt-2 max-w-md text-xs leading-relaxed">{BRAND.note}</p>
+      <div className="mx-auto flex max-w-6xl flex-col gap-6 px-4 py-8 text-sm text-zinc-500 md:flex-row md:items-center md:justify-between">
+        <div className="flex items-start gap-3">
+          <Image
+            src="/branding/elit-mark.png"
+            alt="Elit Detailing"
+            width={113}
+            height={96}
+            className="h-10 w-auto object-contain"
+          />
+          <div>
+            <p className="text-sm font-bold tracking-[0.2em] text-zinc-200 uppercase">{BRAND.name}</p>
+            <p className="mt-2 max-w-md text-xs leading-relaxed">{BRAND.note}</p>
+            <p className="mt-2 text-xs">{BRAND.hours}</p>
+            <a className="text-xs text-amber-400/90 hover:underline" href={BRAND.instagram} target="_blank" rel="noreferrer">
+              Instagram {BRAND.instagramHandle}
+            </a>
+          </div>
         </div>
-        <div className="space-y-1 text-xs">
-          <p>{BRAND.hours}</p>
-          <a className="text-amber-400/90 hover:underline" href={BRAND.instagram} target="_blank" rel="noreferrer">
-            Instagram {BRAND.instagramHandle}
-          </a>
-          <p className="text-zinc-600">Demo veri tarayıcıda saklanır.</p>
+        <div className="inline-flex w-fit items-center rounded-md bg-white px-3 py-2">
+          <Image
+            src="/branding/exportbox-logo.png"
+            alt="Export Box"
+            width={571}
+            height={258}
+            className="h-10 w-auto object-contain"
+          />
         </div>
       </div>
     </footer>
