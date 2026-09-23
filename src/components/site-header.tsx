@@ -29,8 +29,8 @@ export function BrandMark({ href = "/" }: { href?: string }) {
       <Image
         src="/branding/elit-logo.png"
         alt="ELIT OTO DETAILING"
-        width={1106}
-        height={906}
+        width={1098}
+        height={898}
         className="h-14 w-auto object-contain sm:h-16"
         priority
       />
@@ -142,8 +142,8 @@ export function SiteFooter() {
           <Image
             src="/branding/elit-logo.png"
             alt="ELIT OTO DETAILING"
-            width={1106}
-            height={906}
+            width={1098}
+            height={898}
             className="h-24 w-auto object-contain"
           />
           <div>

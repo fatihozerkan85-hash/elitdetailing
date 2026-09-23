@@ -44,8 +44,8 @@ export default function HomePage() {
               <Image
                 src="/branding/elit-logo.png"
                 alt=""
-                width={1106}
-                height={906}
+                width={1098}
+                height={898}
                 className="h-20 w-auto shrink-0 object-contain sm:h-28 lg:h-32"
                 priority
               />
