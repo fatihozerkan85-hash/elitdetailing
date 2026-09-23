@@ -14,24 +14,25 @@ const links = [
   { href: "/hizmetler", label: "Hizmetler" },
   { href: "/randevu", label: "Randevu" },
   { href: "/yol-yardim", label: "Yol yardım" },
-  { href: "/takip", label: "İş takibi" },
+  { href: "/takip", label: "Takip" },
   { href: "/aksesuar", label: "Aksesuar" },
+  { href: "/kampanyalar", label: "Kampanyalar" },
+  { href: "/kuponlar", label: "Kuponlar" },
   { href: "/taleplerim", label: "Taleplerim" },
   { href: "/sss", label: "SSS" },
-  { href: "/taslak", label: "Taslak" },
 ];
 
 export function BrandMark({ href = "/" }: { href?: string }) {
   return (
     <Link href={href} className="flex items-center gap-3">
-      <span className="flex size-9 items-center justify-center rounded-md border border-amber-500/40 bg-gradient-to-br from-zinc-600 via-zinc-800 to-black text-[11px] font-semibold tracking-[0.18em] text-amber-200 shadow-[inset_0_1px_0_rgba(255,255,255,0.2)]">
-        EO
+      <span className="flex size-9 shrink-0 items-center justify-center rounded-md border border-amber-500/40 bg-gradient-to-br from-zinc-600 via-zinc-800 to-black text-[11px] font-semibold tracking-[0.18em] text-amber-200 shadow-[inset_0_1px_0_rgba(255,255,255,0.2)]">
+        {BRAND.short}
       </span>
-      <span className="flex flex-col leading-none">
-        <span className="font-[family-name:var(--font-display)] text-sm tracking-[0.28em] text-zinc-100 uppercase">
+      <span className="flex min-w-0 flex-col leading-none">
+        <span className="font-[family-name:var(--font-display)] truncate text-sm tracking-[0.22em] text-zinc-100 uppercase">
           {BRAND.name}
         </span>
-        <span className="mt-1 text-[10px] tracking-widest text-zinc-500 uppercase">Ankara · self-servis</span>
+        <span className="mt-1 text-[10px] tracking-widest text-zinc-500 uppercase">Ankara · detailing</span>
       </span>
     </Link>
   );
@@ -53,7 +54,7 @@ export function SiteHeader({ variant = "public" }: { variant?: "public" | "panel
         <BrandMark href={variant === "panel" ? "/panel" : "/"} />
 
         {variant === "public" && (
-          <nav className="hidden items-center gap-0.5 xl:flex">
+          <nav className="hidden items-center gap-0.5 lg:flex">
             {links.map((l) => (
               <Link
                 key={l.href}
@@ -90,7 +91,7 @@ export function SiteHeader({ variant = "public" }: { variant?: "public" | "panel
                 {session.role === "owner" ? "Panel" : session.role === "customer" ? session.name.split(" ")[0] : "Giriş"}
               </Link>
               <Sheet>
-                <SheetTrigger className={cn(buttonVariants({ variant: "ghost", size: "icon" }), "xl:hidden")}>
+                <SheetTrigger className={cn(buttonVariants({ variant: "ghost", size: "icon" }), "lg:hidden")}>
                   <Menu />
                 </SheetTrigger>
                 <SheetContent side="right" className="bg-[#111214] text-zinc-100">
@@ -103,6 +104,12 @@ export function SiteHeader({ variant = "public" }: { variant?: "public" | "panel
                         {l.label}
                       </Link>
                     ))}
+                    <Link href="/bildirimler" className="rounded-md px-3 py-2 text-sm hover:bg-white/5">
+                      Bildirimler
+                    </Link>
+                    <Link href="/profil" className="rounded-md px-3 py-2 text-sm hover:bg-white/5">
+                      Profil
+                    </Link>
                     <Link href="/giris" className="rounded-md px-3 py-2 text-sm hover:bg-white/5">
                       Giriş / panel
                     </Link>

@@ -108,11 +108,13 @@
   * {
     @apply border-border outline-ring/50;
   }
-  body {
-    @apply bg-background text-foreground;
-  }
   html {
     @apply font-sans;
+    overflow-x: hidden;
+  }
+  body {
+    @apply bg-background text-foreground min-h-dvh;
+    overflow-x: hidden;
   }
 }
 
@@ -128,4 +130,16 @@
 .plate {
   font-variant-numeric: tabular-nums;
   letter-spacing: 0.12em;
+}
+
+.gold-ring {
+  box-shadow:
+    inset 0 1px 0 rgb(255 255 255 / 0.12),
+    0 0 0 1px rgb(201 162 39 / 0.35);
+}
+
+@media (max-width: 767px) {
+  .public-main {
+    padding-bottom: calc(4.5rem + env(safe-area-inset-bottom, 0px));
+  }
 }

@@ -17,7 +17,7 @@ export default function YolYardimPage() {
   const [name, setName] = useState(session.name !== "Misafir" ? session.name : "Demo Müşteri");
   const [phone, setPhone] = useState("05551234567");
   const [plate, setPlate] = useState("06 ELT 01");
-  const [vehicle, setVehicle] = useState("2021 Volkswagen Passat");
+  const [vehicle, setVehicle] = useState("2021 BMW 5.20i");
   const [location, setLocation] = useState("");
   const [issue, setIssue] = useState("Akü takviye");
   const [urgency, setUrgency] = useState<Urgency>("yuksek");

@@ -8,7 +8,7 @@ const customers: Customer[] = [
     name: "Demo Müşteri",
     phone: "05551234567",
     plate: "06 ELT 01",
-    vehicle: "2021 Volkswagen Passat",
+    vehicle: "2021 BMW 5.20i",
   },
   {
     id: "c-ayse",
@@ -340,5 +340,27 @@ export function buildSeed(): AppState {
         read: true,
       },
     ],
+    coupons: [
+      {
+        id: "cp-1",
+        customerId: "c-demo",
+        code: "ELIT20",
+        title: "Seramik %20",
+        rule: "Boya koruma keşfi",
+        expires: "2026-09-30",
+        status: "aktif",
+      },
+      {
+        id: "cp-2",
+        customerId: "c-demo",
+        code: "YIKA10",
+        title: "100 TL yıkama",
+        rule: "İç+dış yıkama min.",
+        expires: "2026-10-15",
+        status: "aktif",
+      },
+    ],
+    campaignNotif: true,
+    couponNotif: true,
   };
 }

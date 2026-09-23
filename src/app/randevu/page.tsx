@@ -26,7 +26,7 @@ function Form() {
   const [name, setName] = useState(session.name !== "Misafir" ? session.name : "Demo Müşteri");
   const [phone, setPhone] = useState("05551234567");
   const [plate, setPlate] = useState("06 ELT 01");
-  const [vehicle, setVehicle] = useState("2021 Volkswagen Passat");
+  const [vehicle, setVehicle] = useState("2021 BMW 5.20i");
   const [date, setDate] = useState(todayISO());
   const [time, setTime] = useState("16:30");
   const [notes, setNotes] = useState("");

@@ -1,13 +1,16 @@
 import type { Accessory, Service } from "./types";
 
 export const BRAND = {
-  name: "Elit Otomotiv",
-  tagline: "Aracınız Elit’te, değerinde ve güvende.",
+  name: "Elit Detailing",
+  short: "ED",
+  tagline: "Aracınız Elit’te: detailing, yıkama, lastik ve yol yardım.",
   instagram: "https://www.instagram.com/elit_otomotiv/",
   instagramHandle: "@elit_otomotiv",
   hours: "Pazartesi–Cumartesi 08:30–20:00 · Pazar randevulu",
   city: "Ankara",
-  note: "Bu uygulama @elit_otomotiv markası için hazırlanmış bir self-servis ve operasyon prototipidir; adres ve fiyatlar demo amaçlıdır.",
+  address: "Ostim, Ankara",
+  phone: "0312 000 00 00",
+  note: "Elit Detailing self-servis sitesi ve işletme paneli prototipidir. Adres ve fiyatlar demo amaçlıdır.",
 };
 
 export const CATEGORY_LABEL: Record<Service["category"], string> = {
@@ -352,3 +355,38 @@ export const DEMO = {
   customerPhone: "05551234567",
   customerName: "Demo Müşteri",
 };
+
+export const CAMPAIGNS = [
+  {
+    id: "cmp-seramik",
+    title: "Eylül seramik haftası",
+    blurb: "Boya koruma keşfinde %20 kupon. Teklif Taleplerim’e yazılır — arama yok.",
+    couponCode: "ELIT20",
+    ends: "30 Eylül 2026",
+    audience: "Tüm müşteriler",
+  },
+  {
+    id: "cmp-yika",
+    title: "2 al 1 öde yıkama",
+    blurb: "Filo ve aile: ikinci araç dış yıkaması hediye. Aynı gün slot.",
+    couponCode: "YIKA21",
+    ends: "15 Ekim 2026",
+    audience: "Filo + bireysel",
+  },
+  {
+    id: "cmp-lastik",
+    title: "Lastikte balans hediye",
+    blurb: "Mevsimsel değişimde balans ücreti yok. Ebatı nota yazın.",
+    couponCode: "LASTIK0",
+    ends: "1 Kasım 2026",
+    audience: "Lastik randevusu",
+  },
+  {
+    id: "cmp-dogum",
+    title: "Doğum günü detailing",
+    blurb: "İç detailing’de %15. Profilde tarih varsa 7 gün kala otomatik düşer.",
+    couponCode: "DOGUM15",
+    ends: "31 Aralık 2026",
+    audience: "Kayıtlı müşteri",
+  },
+];

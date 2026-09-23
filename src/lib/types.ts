@@ -160,6 +160,18 @@ export type Session = {
   name: string;
 };
 
+export type CouponStatus = "aktif" | "kullanildi" | "doldu";
+
+export type Coupon = {
+  id: string;
+  customerId: string;
+  code: string;
+  title: string;
+  rule: string;
+  expires: string;
+  status: CouponStatus;
+};
+
 export type AppState = {
   session: Session;
   customers: Customer[];
@@ -170,4 +182,7 @@ export type AppState = {
   accessoryOrders: AccessoryOrder[];
   inbox: InboxItem[];
   notifications: Notification[];
+  coupons: Coupon[];
+  campaignNotif: boolean;
+  couponNotif: boolean;
 };

@@ -1,4 +1,4 @@
-import type { Metadata } from "next";
+import type { Metadata, Viewport } from "next";
 import { Oswald, Source_Sans_3 } from "next/font/google";
 import { Providers } from "@/components/providers";
 import "./globals.css";
@@ -16,9 +16,16 @@ const sans = Source_Sans_3({
 });
 
 export const metadata: Metadata = {
-  title: "Elit Otomotiv — Self-servis & operasyon",
+  title: "Elit Detailing — Yıkama, lastik, yol yardım",
   description:
-    "Oto yıkama, lastik, aksesuar, acil yol yardım ve detailing randevu, takip ve işletme paneli.",
+    "Elit Detailing self-servis: randevu, acil yol yardım, iş takibi, kupon ve işletme paneli. Tamamen responsive.",
+};
+
+export const viewport: Viewport = {
+  width: "device-width",
+  initialScale: 1,
+  viewportFit: "cover",
+  themeColor: "#0b0c0e",
 };
 
 export default function RootLayout({ children }: LayoutProps<"/">) {

@@ -9,7 +9,7 @@ import {
   useState,
   type ReactNode,
 } from "react";
-import { ACCESSORIES, DEMO, JOB_STATUS_LABEL, ROADSIDE_STATUS_LABEL, SERVICES } from "./catalog";
+import { ACCESSORIES, CAMPAIGNS, DEMO, JOB_STATUS_LABEL, ROADSIDE_STATUS_LABEL, SERVICES } from "./catalog";
 import { uid } from "./format";
 import { buildSeed } from "./seed";
 import type {
@@ -25,7 +25,7 @@ import type {
   Session,
 } from "./types";
 
-const KEY = "elit-otomotiv-v1";
+const KEY = "elit-detailing-v1";
 
 type Store = AppState & {
   ready: boolean;
@@ -65,6 +65,8 @@ type Store = AppState & {
   updateOrderStatus: (id: string, status: AccessoryOrder["status"]) => void;
   markInboxRead: (id: string) => void;
   markAllNotificationsRead: () => void;
+  claimCoupon: (code: string) => boolean;
+  setNotifPrefs: (p: { campaignNotif?: boolean; couponNotif?: boolean }) => void;
 };
 
 const Ctx = createContext<Store | null>(null);
@@ -101,7 +103,18 @@ export function StoreProvider({ children }: { children: ReactNode }) {
     const id = requestAnimationFrame(() => {
       try {
         const raw = localStorage.getItem(KEY);
-        if (raw) setState(JSON.parse(raw) as AppState);
+        if (raw) {
+          const parsed = JSON.parse(raw) as Partial<AppState>;
+          const seed = buildSeed();
+          setState({
+            ...seed,
+            ...parsed,
+            coupons: parsed.coupons ?? seed.coupons,
+            campaignNotif: parsed.campaignNotif ?? true,
+            couponNotif: parsed.couponNotif ?? true,
+            session: parsed.session ?? seed.session,
+          });
+        }
       } catch {
         /* keep seed */
       }
@@ -419,6 +432,44 @@ export function StoreProvider({ children }: { children: ReactNode }) {
     }));
   }, []);
 
+  const claimCoupon = useCallback((code: string) => {
+    const camp = CAMPAIGNS.find((c) => c.couponCode === code);
+    if (!camp) return false;
+    setState((s) => {
+      const cid = s.session.customerId ?? "c-demo";
+      if (s.coupons.some((c) => c.code === code && c.customerId === cid && c.status === "aktif")) return s;
+      return {
+        ...s,
+        coupons: [
+          {
+            id: uid("CP"),
+            customerId: cid,
+            code: camp.couponCode,
+            title: camp.title,
+            rule: camp.blurb,
+            expires: "2026-12-31",
+            status: "aktif",
+          },
+          ...s.coupons,
+        ],
+        notifications: notify(s.notifications, {
+          title: "Kupon tanımlandı",
+          body: `${camp.couponCode} cüzdanınıza eklendi.`,
+          href: "/kuponlar",
+        }),
+      };
+    });
+    return true;
+  }, []);
+
+  const setNotifPrefs = useCallback((p: { campaignNotif?: boolean; couponNotif?: boolean }) => {
+    setState((s) => ({
+      ...s,
+      campaignNotif: p.campaignNotif ?? s.campaignNotif,
+      couponNotif: p.couponNotif ?? s.couponNotif,
+    }));
+  }, []);
+
   const value = useMemo<Store>(
     () => ({
       ...state,
@@ -436,6 +487,8 @@ export function StoreProvider({ children }: { children: ReactNode }) {
       updateOrderStatus,
       markInboxRead,
       markAllNotificationsRead,
+      claimCoupon,
+      setNotifPrefs,
     }),
     [
       state,
@@ -453,6 +506,8 @@ export function StoreProvider({ children }: { children: ReactNode }) {
       updateOrderStatus,
       markInboxRead,
       markAllNotificationsRead,
+      claimCoupon,
+      setNotifPrefs,
     ],
   );
 
