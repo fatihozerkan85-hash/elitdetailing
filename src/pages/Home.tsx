@@ -21,7 +21,6 @@ const campaigns = [
 ];
 
 const serviceEmojis: Record<number, string> = {
-  3: '🔧',
   4: '✨',
   5: '⚙️',
   6: '🛡️',
@@ -31,7 +30,7 @@ const serviceEmojis: Record<number, string> = {
 const services = [
   { id: 1, title: 'Premium Oto Yıkama', subtitle: 'PREMIUM · EXCLUSIVE', price: '1.250 ₺', duration: '45 dk', tag: 'En Popüler', icon: '/services/premium-oto-yikama.png' },
   { id: 2, title: 'Lastik Değişimi & Balans', subtitle: '', price: '1.850 ₺', duration: '60 dk', tag: '', icon: '/services/lastik-balans.png' },
-  { id: 3, title: 'Aksesuar Montajı', subtitle: '', price: '950 ₺', duration: '30 dk', tag: '' },
+  { id: 3, title: 'Oto Kuaför & Detailing', subtitle: '', price: '950 ₺', duration: '30 dk', tag: '', icon: '/services/oto-kuafor-detailing.png' },
   { id: 4, title: 'Detaylı İç-Dış Bakım', subtitle: 'FULL DETAILING', price: '2.750 ₺', duration: '90 dk', tag: 'Premium' },
   { id: 5, title: 'Motor & Mekanik Kontrol', subtitle: '', price: '1.600 ₺', duration: '60 dk', tag: '' },
   { id: 6, title: 'Seramik Kaplama', subtitle: 'CERAMIC PRO', price: '8.500 ₺', duration: '240 dk', tag: 'Lüks' },
