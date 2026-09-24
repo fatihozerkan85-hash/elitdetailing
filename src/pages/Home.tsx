@@ -4,6 +4,8 @@ import { useRouter } from 'next/navigation';
 import { useAuth } from '../context/AuthContext';
 import logoImg from '../assets/elite-logo.png';
 
+const logoSrc = typeof logoImg === 'string' ? logoImg : logoImg.src;
+
 const announcements = [
   { emoji: '🔥', text: 'Eylül Kampanyası: Seramik Kaplamada %20 İndirim — Kod: ELIT20' },
   { emoji: '⚡', text: 'Yeni Hizmet: Filo Araç Bakım Paketleri — Toplu Randevu Avantajı' },
@@ -54,7 +56,7 @@ export default function Home() {
     <div style={{ background: '#080808', minHeight: '100vh', color: '#f0e6c8' }}>
       <nav style={{ position: 'fixed', top: 0, left: 0, right: 0, zIndex: 100, padding: '0 2.5rem', height: 100, display: 'flex', alignItems: 'center', justifyContent: 'space-between', background: 'rgba(8,8,8,0.94)', backdropFilter: 'blur(16px)', borderBottom: '1px solid rgba(201,168,76,0.18)' }}>
         <div style={{ display: 'flex', alignItems: 'center', gap: 18, cursor: 'pointer' }} onClick={() => scrollTo('hero')}>
-          <img src={logoImg} alt="Elit Detailing" style={{ height: 78, objectFit: 'contain', filter: 'drop-shadow(0 0 12px rgba(201,168,76,0.45))' }} />
+          <img src={logoSrc} alt="Elit Detailing" style={{ height: 78, objectFit: 'contain', filter: 'drop-shadow(0 0 12px rgba(201,168,76,0.45))' }} />
           <div>
             <div className="font-cinzel text-gold" style={{ fontSize: 28, fontWeight: 700, letterSpacing: '0.22em', lineHeight: 1 }}>ELIT</div>
             <div style={{ fontSize: 17, letterSpacing: '0.32em', color: 'rgba(201,168,76,0.5)', fontFamily: 'Raleway, sans-serif', fontWeight: 600, marginTop: 4 }}>DETAILING</div>
@@ -139,7 +141,7 @@ export default function Home() {
         <div style={{ position: 'relative', textAlign: 'center', padding: '0 2rem' }}>
           <div style={{ fontSize: 11, letterSpacing: '0.45em', color: 'rgba(201,168,76,0.65)', marginBottom: 32, fontFamily: 'Raleway, sans-serif', fontWeight: 500 }}>✦ &nbsp; PREMİUM OTOMOTİV HİZMETLERİ &nbsp; ✦</div>
           <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 28, marginBottom: 12, flexWrap: 'wrap' }}>
-            <img src={logoImg} alt="Elit Detailing" style={{ width: 'clamp(140px, 17.5vw, 228px)', height: 'clamp(140px, 17.5vw, 228px)', objectFit: 'contain', filter: 'drop-shadow(0 0 32px rgba(201,168,76,0.65))', flexShrink: 0 }} />
+            <img src={logoSrc} alt="Elit Detailing" style={{ width: 'clamp(140px, 17.5vw, 228px)', height: 'clamp(140px, 17.5vw, 228px)', objectFit: 'contain', filter: 'drop-shadow(0 0 32px rgba(201,168,76,0.65))', flexShrink: 0 }} />
             <div style={{ textAlign: 'left' }}>
               <h1 className="font-display" style={{ fontSize: 'clamp(3.2rem, 8vw, 7rem)', fontWeight: 900, lineHeight: 0.92, marginBottom: 4, background: 'linear-gradient(135deg, #E8C96A 0%, #C9A84C 50%, #9A7420 100%)', WebkitBackgroundClip: 'text', WebkitTextFillColor: 'transparent', backgroundClip: 'text' }}>Elit</h1>
               <h2 className="font-display" style={{ fontSize: 'clamp(1.5rem, 3.8vw, 3.2rem)', fontWeight: 400, fontStyle: 'italic', letterSpacing: '0.22em', color: 'rgba(240,230,200,0.85)', marginBottom: 0 }}>Detailing</h2>
@@ -243,7 +245,7 @@ export default function Home() {
       <footer style={{ background: '#080808', borderTop: '1px solid rgba(201,168,76,0.12)', padding: '28px 2.5rem' }}>
         <div style={{ maxWidth: 1000, margin: '0 auto', display: 'flex', alignItems: 'center', justifyContent: 'space-between', flexWrap: 'wrap', gap: 16 }}>
           <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
-            <img src={logoImg} alt="Elit Detailing" style={{ height: 30, filter: 'drop-shadow(0 0 6px rgba(201,168,76,0.3))' }} />
+            <img src={logoSrc} alt="Elit Detailing" style={{ height: 30, filter: 'drop-shadow(0 0 6px rgba(201,168,76,0.3))' }} />
             <span className="font-cinzel text-gold" style={{ fontSize: 11, letterSpacing: '0.2em' }}>ELIT DETAILING</span>
           </div>
           <div style={{ fontSize: 12, color: 'rgba(240,230,200,0.3)', fontFamily: 'Inter, sans-serif' }}>© 2026 Elit Detailing. Tüm hakları saklıdır.</div>
