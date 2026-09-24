@@ -30,6 +30,7 @@ html, body {
   color: #f0e6c8;
   font-family: 'Barlow', 'Inter', sans-serif;
   -webkit-font-smoothing: antialiased;
+  overflow-x: hidden;
 }
 
 body::-webkit-scrollbar { width: 4px; }
