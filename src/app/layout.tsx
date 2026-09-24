@@ -1,35 +1,24 @@
 import type { Metadata, Viewport } from "next";
-import { Inter } from "next/font/google";
 import { Providers } from "@/components/providers";
-import "./globals.css";
-
-const inter = Inter({
-  variable: "--font-sans",
-  subsets: ["latin", "latin-ext"],
-  display: "swap",
-});
+import "@/index.css";
 
 export const metadata: Metadata = {
-  title: "Elit Detailing — Yıkama, lastik, yol yardım",
+  title: "Elite Detailing",
   description:
-    "Elit Detailing self-servis: randevu, acil yol yardım, iş takibi, kupon ve işletme paneli. Tamamen responsive.",
+    "Profesyonel detailing, seramik kaplama ve premium bakım hizmetleri.",
 };
 
 export const viewport: Viewport = {
   width: "device-width",
   initialScale: 1,
   viewportFit: "cover",
-  themeColor: "#0b0c0e",
+  themeColor: "#080808",
 };
 
 export default function RootLayout({ children }: LayoutProps<"/">) {
   return (
-    <html
-      lang="tr"
-      className={`dark ${inter.variable} h-full antialiased`}
-      style={{ ["--font-display" as string]: "var(--font-sans)" }}
-    >
-      <body className={`${inter.className} min-h-full bg-[#0b0c0e] font-sans text-zinc-100`}>
+    <html lang="tr">
+      <body>
         <Providers>{children}</Providers>
       </body>
     </html>
