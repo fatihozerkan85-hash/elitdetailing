@@ -23,7 +23,6 @@ const campaigns = [
 const serviceEmojis: Record<number, string> = {
   4: '✨',
   5: '⚙️',
-  8: '🎗️',
 };
 
 const services = [
@@ -34,7 +33,7 @@ const services = [
   { id: 5, title: 'Motor & Mekanik Kontrol', subtitle: '', price: '1.600 ₺', duration: '60 dk', tag: '' },
   { id: 6, title: 'Seramik Kaplama', subtitle: 'CERAMIC PRO', price: '8.500 ₺', duration: '240 dk', tag: 'Lüks', icon: '/services/seramik-kaplama.png' },
   { id: 7, title: 'Acil Yol Yardımı', subtitle: '7/24', price: '2.200 ₺', duration: 'Anında', tag: '7/24', icon: '/services/acil-yol-yardim.png' },
-  { id: 8, title: 'PPF Film Kaplama', subtitle: 'PAINT PROTECTION', price: '12.000 ₺', duration: '360 dk', tag: 'Elit' },
+  { id: 8, title: 'PPF Film Kaplama', subtitle: 'PAINT PROTECTION', price: '12.000 ₺', duration: '360 dk', tag: 'Elit', icon: '/services/ppf-film-kaplama.png' },
 ];
 
 const navLinks = ['Anasayfa', 'Hizmetler', 'Hakkımızda', 'İletişim'];
