@@ -3,7 +3,7 @@ import { Providers } from "@/components/providers";
 import "@/index.css";
 
 export const metadata: Metadata = {
-  title: "Elite Detailing",
+  title: "Elit Detailing",
   description:
     "Profesyonel detailing, seramik kaplama ve premium bakım hizmetleri.",
 };

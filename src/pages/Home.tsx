@@ -8,14 +8,14 @@ const announcements = [
   { emoji: '🔥', text: 'Eylül Kampanyası: Seramik Kaplamada %20 İndirim — Kod: ELIT20' },
   { emoji: '⚡', text: 'Yeni Hizmet: Filo Araç Bakım Paketleri — Toplu Randevu Avantajı' },
   { emoji: '🎁', text: 'İç+Dış Yıkama Al 1 Öde — Eylül Sonuna Kadar Geçerli' },
-  { emoji: '🏆', text: 'Elite Detailing, 2024 Türkiyenin En İyi Detailing Merkezi Ödülünü Aldı' },
+  { emoji: '🏆', text: 'Elit Detailing, 2024 Türkiyenin En İyi Detailing Merkezi Ödülünü Aldı' },
   { emoji: '📱', text: 'Mobil Uygulamamızı İndirin, İlk Randevunuzda %10 İndirim Kazanın' },
 ];
 
 const campaigns = [
   { id: 1, tag: 'EYLÜL KAMPANYASI', title: 'Seramik Kaplama', highlight: '%20 İndirim', desc: '9H sertliğinde seramik kaplama ile aracınıza 3–5 yıl tam koruma. Sınırlı kontenjan!', cta: 'Hemen Randevu Al', code: 'Kod: ELIT20', image: 'https://images.unsplash.com/photo-1558618666-fcd25c85cd64?w=1400&h=600&fit=crop&auto=format', accent: '#C9A84C' },
   { id: 2, tag: 'ÖZEL TEKLİF', title: 'Premium İç-Dış Yıkama', highlight: '2 Al 1 Öde', desc: 'El yıkama, buharlı temizlik ve deri bakımı dahil komple detailing paketi.', cta: 'Paketi İncele', code: 'Eylül Sonuna Kadar', image: 'https://images.unsplash.com/photo-1607860108855-64acf2078ed9?w=1400&h=600&fit=crop&auto=format', accent: '#E8C96A' },
-  { id: 3, tag: 'YENİ HİZMET', title: 'PPF Film Kaplama', highlight: 'Ücretsiz Kenar Koruma', desc: 'Paint Protection Film ile boyayı çizik ve taş izlerine karşı tam kalkan.', cta: 'Detayları Gör', code: 'Elite Pakete Özel', image: 'https://images.unsplash.com/photo-1492144534655-ae79c964c9d7?w=1400&h=600&fit=crop&auto=format', accent: '#C9A84C' },
+  { id: 3, tag: 'YENİ HİZMET', title: 'PPF Film Kaplama', highlight: 'Ücretsiz Kenar Koruma', desc: 'Paint Protection Film ile boyayı çizik ve taş izlerine karşı tam kalkan.', cta: 'Detayları Gör', code: 'Elit Pakete Özel', image: 'https://images.unsplash.com/photo-1492144534655-ae79c964c9d7?w=1400&h=600&fit=crop&auto=format', accent: '#C9A84C' },
 ];
 
 const services = [
@@ -26,7 +26,7 @@ const services = [
   { id: 5, title: 'Motor & Mekanik Kontrol', subtitle: '', price: '1.600 ₺', duration: '60 dk', tag: '' },
   { id: 6, title: 'Seramik Kaplama', subtitle: 'CERAMIC PRO', price: '8.500 ₺', duration: '240 dk', tag: 'Lüks' },
   { id: 7, title: 'Acil Yol Yardımı', subtitle: '7/24', price: '2.200 ₺', duration: 'Anında', tag: '7/24' },
-  { id: 8, title: 'PPF Film Kaplama', subtitle: 'PAINT PROTECTION', price: '12.000 ₺', duration: '360 dk', tag: 'Elite' },
+  { id: 8, title: 'PPF Film Kaplama', subtitle: 'PAINT PROTECTION', price: '12.000 ₺', duration: '360 dk', tag: 'Elit' },
 ];
 
 const navLinks = ['Anasayfa', 'Hizmetler', 'Hakkımızda', 'İletişim'];
@@ -54,9 +54,9 @@ export default function Home() {
     <div style={{ background: '#080808', minHeight: '100vh', color: '#f0e6c8' }}>
       <nav style={{ position: 'fixed', top: 0, left: 0, right: 0, zIndex: 100, padding: '0 2.5rem', height: 100, display: 'flex', alignItems: 'center', justifyContent: 'space-between', background: 'rgba(8,8,8,0.94)', backdropFilter: 'blur(16px)', borderBottom: '1px solid rgba(201,168,76,0.18)' }}>
         <div style={{ display: 'flex', alignItems: 'center', gap: 18, cursor: 'pointer' }} onClick={() => scrollTo('hero')}>
-          <img src={logoImg} alt="Elite Detailing" style={{ height: 78, objectFit: 'contain', filter: 'drop-shadow(0 0 12px rgba(201,168,76,0.45))' }} />
+          <img src={logoImg} alt="Elit Detailing" style={{ height: 78, objectFit: 'contain', filter: 'drop-shadow(0 0 12px rgba(201,168,76,0.45))' }} />
           <div>
-            <div className="font-cinzel text-gold" style={{ fontSize: 28, fontWeight: 700, letterSpacing: '0.22em', lineHeight: 1 }}>ELITE</div>
+            <div className="font-cinzel text-gold" style={{ fontSize: 28, fontWeight: 700, letterSpacing: '0.22em', lineHeight: 1 }}>ELIT</div>
             <div style={{ fontSize: 17, letterSpacing: '0.32em', color: 'rgba(201,168,76,0.5)', fontFamily: 'Raleway, sans-serif', fontWeight: 600, marginTop: 4 }}>DETAILING</div>
           </div>
         </div>
@@ -139,9 +139,9 @@ export default function Home() {
         <div style={{ position: 'relative', textAlign: 'center', padding: '0 2rem' }}>
           <div style={{ fontSize: 11, letterSpacing: '0.45em', color: 'rgba(201,168,76,0.65)', marginBottom: 32, fontFamily: 'Raleway, sans-serif', fontWeight: 500 }}>✦ &nbsp; PREMİUM OTOMOTİV HİZMETLERİ &nbsp; ✦</div>
           <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 28, marginBottom: 12, flexWrap: 'wrap' }}>
-            <img src={logoImg} alt="Elite Detailing" style={{ width: 'clamp(140px, 17.5vw, 228px)', height: 'clamp(140px, 17.5vw, 228px)', objectFit: 'contain', filter: 'drop-shadow(0 0 32px rgba(201,168,76,0.65))', flexShrink: 0 }} />
+            <img src={logoImg} alt="Elit Detailing" style={{ width: 'clamp(140px, 17.5vw, 228px)', height: 'clamp(140px, 17.5vw, 228px)', objectFit: 'contain', filter: 'drop-shadow(0 0 32px rgba(201,168,76,0.65))', flexShrink: 0 }} />
             <div style={{ textAlign: 'left' }}>
-              <h1 className="font-display" style={{ fontSize: 'clamp(3.2rem, 8vw, 7rem)', fontWeight: 900, lineHeight: 0.92, marginBottom: 4, background: 'linear-gradient(135deg, #E8C96A 0%, #C9A84C 50%, #9A7420 100%)', WebkitBackgroundClip: 'text', WebkitTextFillColor: 'transparent', backgroundClip: 'text' }}>Elite</h1>
+              <h1 className="font-display" style={{ fontSize: 'clamp(3.2rem, 8vw, 7rem)', fontWeight: 900, lineHeight: 0.92, marginBottom: 4, background: 'linear-gradient(135deg, #E8C96A 0%, #C9A84C 50%, #9A7420 100%)', WebkitBackgroundClip: 'text', WebkitTextFillColor: 'transparent', backgroundClip: 'text' }}>Elit</h1>
               <h2 className="font-display" style={{ fontSize: 'clamp(1.5rem, 3.8vw, 3.2rem)', fontWeight: 400, fontStyle: 'italic', letterSpacing: '0.22em', color: 'rgba(240,230,200,0.85)', marginBottom: 0 }}>Detailing</h2>
             </div>
           </div>
@@ -212,7 +212,7 @@ export default function Home() {
             </div>
           </div>
           <div style={{ position: 'relative' }}>
-            <img src="https://images.unsplash.com/photo-1625047509248-ec889cbff17f?w=600&h=700&fit=crop&auto=format" alt="Elite Detailing workshop" style={{ width: '100%', borderRadius: 4, border: '1px solid rgba(201,168,76,0.18)', filter: 'brightness(0.82)' }} />
+            <img src="https://images.unsplash.com/photo-1625047509248-ec889cbff17f?w=600&h=700&fit=crop&auto=format" alt="Elit Detailing workshop" style={{ width: '100%', borderRadius: 4, border: '1px solid rgba(201,168,76,0.18)', filter: 'brightness(0.82)' }} />
             <div style={{ position: 'absolute', bottom: -20, left: -20, background: 'linear-gradient(135deg, #C9A84C, #8B6914)', padding: '20px 28px', borderRadius: 4 }}>
               <div className="font-display" style={{ fontSize: 32, fontWeight: 900, color: '#080808', lineHeight: 1 }}>8+</div>
               <div style={{ fontSize: 10, letterSpacing: '0.2em', color: 'rgba(8,8,8,0.65)', fontFamily: 'Raleway, sans-serif', fontWeight: 600 }}>YIL DENEYİM</div>
@@ -243,10 +243,10 @@ export default function Home() {
       <footer style={{ background: '#080808', borderTop: '1px solid rgba(201,168,76,0.12)', padding: '28px 2.5rem' }}>
         <div style={{ maxWidth: 1000, margin: '0 auto', display: 'flex', alignItems: 'center', justifyContent: 'space-between', flexWrap: 'wrap', gap: 16 }}>
           <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
-            <img src={logoImg} alt="Elite Detailing" style={{ height: 30, filter: 'drop-shadow(0 0 6px rgba(201,168,76,0.3))' }} />
-            <span className="font-cinzel text-gold" style={{ fontSize: 11, letterSpacing: '0.2em' }}>ELITE DETAILING</span>
+            <img src={logoImg} alt="Elit Detailing" style={{ height: 30, filter: 'drop-shadow(0 0 6px rgba(201,168,76,0.3))' }} />
+            <span className="font-cinzel text-gold" style={{ fontSize: 11, letterSpacing: '0.2em' }}>ELIT DETAILING</span>
           </div>
-          <div style={{ fontSize: 12, color: 'rgba(240,230,200,0.3)', fontFamily: 'Inter, sans-serif' }}>© 2026 Elite Detailing. Tüm hakları saklıdır.</div>
+          <div style={{ fontSize: 12, color: 'rgba(240,230,200,0.3)', fontFamily: 'Inter, sans-serif' }}>© 2026 Elit Detailing. Tüm hakları saklıdır.</div>
         </div>
       </footer>
 
