@@ -1,6 +1,7 @@
 import { ACCESSORIES, SERVICES } from "./catalog";
-import { minutesAgo, todayISO, uid } from "./format";
-import type { AppState, Customer, Technician } from "./types";
+import { minutesAgo, todayISO } from "./format";
+import { segmentsFor } from "./process";
+import type { AppState, Customer, Job, Technician } from "./types";
 
 const customers: Customer[] = [
   {
@@ -48,6 +49,16 @@ const technicians: Technician[] = [
   { id: "t-elif", name: "Elif Aksoy", role: "Karşılama / kasa", load: 1, shift: "08:30–20:00" },
 ];
 
+function shopJob(partial: Omit<Job, "segments" | "currentSegmentIndex" | "notifiedSegmentIndex"> & Partial<Pick<Job, "segments" | "currentSegmentIndex" | "notifiedSegmentIndex">>): Job {
+  const segments = partial.segments ?? segmentsFor(partial.serviceId);
+  return {
+    currentSegmentIndex: partial.startedAt ? 0 : -1,
+    notifiedSegmentIndex: partial.startedAt ? 0 : -1,
+    ...partial,
+    segments,
+  };
+}
+
 export function buildSeed(): AppState {
   const today = todayISO();
   const ic = SERVICES.find((s) => s.id === "ic-dis-yikama")!;
@@ -60,7 +71,7 @@ export function buildSeed(): AppState {
     customers,
     technicians,
     jobs: [
-      {
+      shopJob({
         id: "IS-1042",
         kind: "yikama",
         customerId: "c-ayse",
@@ -74,14 +85,17 @@ export function buildSeed(): AppState {
         estimate: 650,
         status: "yikamada",
         technicianId: "t-mehmet",
+        startedAt: minutesAgo(12),
+        currentSegmentIndex: 1,
+        notifiedSegmentIndex: 1,
         createdAt: minutesAgo(40),
         updatedAt: minutesAgo(12),
         timeline: [
-          { at: minutesAgo(40), status: "kuyrukta", note: "Plaka okundu, kuyruğa alındı." },
-          { at: minutesAgo(12), status: "yikamada", note: "Mehmet Usta başladı." },
+          { at: minutesAgo(40), status: "giris-bekleniyor", note: "Randevu alındı. Süreç giriş onayını bekliyor." },
+          { at: minutesAgo(12), status: "yikamada", note: "Giriş onaylandı — sayaç başladı." },
         ],
-      },
-      {
+      }),
+      shopJob({
         id: "IS-1043",
         kind: "yikama",
         customerId: "c-cem",
@@ -93,13 +107,13 @@ export function buildSeed(): AppState {
         serviceName: dis.name,
         notes: "Sadece dış, acelem var.",
         estimate: 350,
-        status: "kuyrukta",
+        status: "giris-bekleniyor",
         technicianId: "t-mehmet",
         createdAt: minutesAgo(18),
         updatedAt: minutesAgo(18),
-        timeline: [{ at: minutesAgo(18), status: "kuyrukta", note: "Walk-in kayıt." }],
-      },
-      {
+        timeline: [{ at: minutesAgo(18), status: "giris-bekleniyor", note: "Walk-in kayıt. Araç girişi henüz onaylanmadı." }],
+      }),
+      shopJob({
         id: "IS-1038",
         kind: "detailing",
         customerId: "c-burcu",
@@ -111,17 +125,19 @@ export function buildSeed(): AppState {
         serviceName: det.name,
         notes: "Deri koltuk bakım kremi uygulansın.",
         estimate: 2200,
-        status: "kurulama",
+        status: "yikamada",
         technicianId: "t-deniz",
+        startedAt: minutesAgo(100),
+        currentSegmentIndex: 1,
+        notifiedSegmentIndex: 1,
         createdAt: minutesAgo(180),
-        updatedAt: minutesAgo(25),
+        updatedAt: minutesAgo(100),
         timeline: [
-          { at: minutesAgo(180), status: "kuyrukta", note: "Randevulu giriş." },
-          { at: minutesAgo(150), status: "yikamada", note: "İç detailing başladı." },
-          { at: minutesAgo(25), status: "kurulama", note: "Kurutma ve kontrol." },
+          { at: minutesAgo(180), status: "giris-bekleniyor", note: "Randevulu kayıt." },
+          { at: minutesAgo(100), status: "yikamada", note: "Giriş onaylandı — iç detailing sayacı." },
         ],
-      },
-      {
+      }),
+      shopJob({
         id: "IS-1031",
         kind: "lastik",
         customerId: "c-oguz",
@@ -135,16 +151,18 @@ export function buildSeed(): AppState {
         estimate: 4800,
         status: "teslim",
         technicianId: "t-ali",
+        startedAt: minutesAgo(240),
+        currentSegmentIndex: 3,
+        notifiedSegmentIndex: 3,
         createdAt: minutesAgo(240),
         updatedAt: minutesAgo(50),
         timeline: [
-          { at: minutesAgo(240), status: "kuyrukta", note: "Lastikler kasadan çıktı." },
-          { at: minutesAgo(200), status: "yikamada", note: "Sök-tak (montaj)." },
-          { at: minutesAgo(80), status: "kurulama", note: "Balans ve tork." },
-          { at: minutesAgo(50), status: "teslim", note: "Teslim ve tahsilat." },
+          { at: minutesAgo(240), status: "giris-bekleniyor", note: "Lastikler kasadan çıktı." },
+          { at: minutesAgo(200), status: "yikamada", note: "Giriş onaylandı." },
+          { at: minutesAgo(50), status: "teslim", note: "Segmentler tamam, teslim." },
         ],
-      },
-      {
+      }),
+      shopJob({
         id: "IS-1044",
         kind: "yikama",
         customerId: "c-demo",
@@ -154,14 +172,15 @@ export function buildSeed(): AppState {
         vehicle: "2021 Volkswagen Passat",
         serviceId: ic.id,
         serviceName: ic.name,
-        notes: "Demo takip kaydı.",
+        appointmentId: "RDV-221",
+        notes: "Demo — randevu saati geldi ama süreç başlamadı.",
         estimate: 650,
-        status: "kuyrukta",
+        status: "giris-bekleniyor",
         technicianId: "t-mehmet",
         createdAt: minutesAgo(8),
         updatedAt: minutesAgo(8),
-        timeline: [{ at: minutesAgo(8), status: "kuyrukta", note: "Online randevu ile kuyruğa alındı." }],
-      },
+        timeline: [{ at: minutesAgo(8), status: "giris-bekleniyor", note: "Online randevu. Giriş onayı yok; sayaç kapalı." }],
+      }),
     ],
     appointments: [
       {
@@ -181,33 +200,33 @@ export function buildSeed(): AppState {
       },
       {
         id: "RDV-221",
+        customerId: "c-demo",
+        customerName: "Demo Müşteri",
+        phone: "05551234567",
+        plate: "06 ELT 01",
+        vehicle: "2021 Volkswagen Passat",
+        serviceId: "ic-dis-yikama",
+        serviceName: ic.name,
+        date: today,
+        time: "09:00",
+        notes: "Demo takip kaydı.",
+        status: "onaylandi",
+        createdAt: minutesAgo(8),
+      },
+      {
+        id: "RDV-218",
         customerId: "c-ayse",
         customerName: "Ayşe Kaya",
         phone: "05321220011",
         plate: "06 AYK 142",
         vehicle: "2019 Renault Megane",
-        serviceId: "rot-balans",
-        serviceName: "Rot balans & rot ayarı talebi",
+        serviceId: "ic-dis-yikama",
+        serviceName: ic.name,
         date: today,
-        time: "11:00",
-        notes: "120 km/s üzeri titreşim.",
+        time: "10:30",
+        notes: "",
         status: "bekliyor",
-        createdAt: minutesAgo(55),
-      },
-      {
-        id: "RDV-218",
-        customerId: "c-cem",
-        customerName: "Cem Yıldız",
-        phone: "05423334455",
-        plate: "06 CM 908",
-        vehicle: "2022 Toyota Corolla",
-        serviceId: "dis-detailing",
-        serviceName: "Dış detailing + pasta-cila",
-        date: today,
-        time: "14:00",
-        notes: "Keşif sonrası pasta şiddeti.",
-        status: "onaylandi",
-        createdAt: minutesAgo(400),
+        createdAt: minutesAgo(120),
       },
     ],
     roadside: [
@@ -244,9 +263,7 @@ export function buildSeed(): AppState {
         status: "alindi",
         createdAt: minutesAgo(6),
         updatedAt: minutesAgo(6),
-        timeline: [
-          { at: minutesAgo(6), status: "alindi", note: "Kritik öncelik — akü takviye talebi." },
-        ],
+        timeline: [{ at: minutesAgo(6), status: "alindi", note: "Kritik öncelik — akü takviye talebi." }],
       },
     ],
     accessoryOrders: [
@@ -255,89 +272,41 @@ export function buildSeed(): AppState {
         customerId: "c-demo",
         customerName: "Demo Müşteri",
         phone: "05551234567",
-        accessoryId: "acc-paspas",
+        accessoryId: ACCESSORIES[0].id,
         accessoryName: ACCESSORIES[0].name,
         qty: 1,
-        total: 1850,
-        notes: "Passat B8, siyah.",
+        total: ACCESSORIES[0].price,
+        notes: "BMW 5.20i 2021.",
         status: "hazirlaniyor",
-        createdAt: minutesAgo(120),
+        createdAt: minutesAgo(50),
       },
     ],
     inbox: [
       {
-        id: uid("INB"),
+        id: "INB-1",
         customerId: "c-demo",
-        kind: "is",
-        refId: "IS-1044",
-        title: "İç + dış yıkama — 06 ELT 01",
+        kind: "randevu",
+        refId: "RDV-221",
+        title: "İç + dış yıkama randevusu — 06 ELT 01",
         unread: true,
         createdAt: minutesAgo(8),
         messages: [
           {
             at: minutesAgo(8),
             from: "sistem",
-            text: "Talebiniz kuyruğa alındı. Sıra geldiğinde durum ‘Yıkamada’ olarak güncellenir. Temsilci aramanıza gerek yok.",
-          },
-        ],
-      },
-      {
-        id: uid("INB"),
-        customerId: "c-demo",
-        kind: "yol-yardim",
-        refId: "YY-78",
-        title: "Yol yardım — AVM kat −2",
-        unread: true,
-        createdAt: minutesAgo(6),
-        messages: [
-          {
-            at: minutesAgo(6),
-            from: "sistem",
-            text: "Kritik yol yardım talebiniz alındı. En yakın ekip yönlendirilecek; ETA panoda görünecek.",
-          },
-        ],
-      },
-      {
-        id: uid("INB"),
-        customerId: "c-demo",
-        kind: "aksesuar",
-        refId: "AKS-12",
-        title: "Paspas seti siparişi",
-        unread: false,
-        createdAt: minutesAgo(120),
-        messages: [
-          {
-            at: minutesAgo(120),
-            from: "sistem",
-            text: "Siparişiniz hazırlanıyor. Stok teyidi sonrası ‘Teslime hazır’ mesajı gelecek.",
+            text: "Randevunuz alındı. Saat gelmesi süreci başlatmaz. Araç girişte onaylanınca sayaç ve bildirimler açılır.",
           },
         ],
       },
     ],
     notifications: [
       {
-        id: uid("NT"),
-        title: "Yeni yol yardım",
-        body: "YY-78 · Demo Müşteri · kritik akü",
-        href: "/yonetici/isler/YY-78",
-        at: minutesAgo(6),
+        id: "NT-1",
+        title: "Giriş bekleniyor",
+        body: "IS-1044 · Demo Müşteri tesiste, onay bekliyor.",
+        href: "/yonetici/isler/IS-1044",
+        at: minutesAgo(8),
         read: false,
-      },
-      {
-        id: uid("NT"),
-        title: "Randevu onayı bekliyor",
-        body: "RDV-221 · Ayşe Kaya · rot balans 11:00",
-        href: "/yonetici",
-        at: minutesAgo(55),
-        read: false,
-      },
-      {
-        id: uid("NT"),
-        title: "Yıkama başladı",
-        body: "IS-1042 · 06 AYK 142",
-        href: "/yonetici/isler/IS-1042",
-        at: minutesAgo(12),
-        read: true,
       },
     ],
     coupons: [
@@ -345,18 +314,9 @@ export function buildSeed(): AppState {
         id: "cp-1",
         customerId: "c-demo",
         code: "ELIT20",
-        title: "Seramik %20",
-        rule: "Boya koruma keşfi",
-        expires: "2026-09-30",
-        status: "aktif",
-      },
-      {
-        id: "cp-2",
-        customerId: "c-demo",
-        code: "YIKA10",
-        title: "100 TL yıkama",
-        rule: "İç+dış yıkama min.",
-        expires: "2026-10-15",
+        title: "Seramik keşif %20",
+        rule: "Keşif randevusunda geçerli",
+        expires: "30 Eylül 2026",
         status: "aktif",
       },
     ],

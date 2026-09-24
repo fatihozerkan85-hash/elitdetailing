@@ -11,16 +11,16 @@ import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
 import { SERVICES } from "@/lib/catalog";
 import { addDaysISO, todayISO } from "@/lib/format";
+import { occupancyMin } from "@/lib/process";
+import { SLOT_TIMES, slotConflicts } from "@/lib/schedule";
 import { useStore } from "@/lib/store";
 import { Suspense } from "react";
-
-const TIMES = ["09:00", "09:30", "10:00", "10:30", "11:00", "11:30", "12:00", "13:00", "14:00", "15:00", "16:00", "16:30", "17:00", "18:00", "19:00"];
 
 function Form() {
   const params = useSearchParams();
   const preset = params.get("hizmet") ?? "ic-dis-yikama";
   const bookable = SERVICES.filter((s) => s.category !== "yol-yardim");
-  const { ready, session, createAppointment } = useStore();
+  const { ready, session, createAppointment, appointments } = useStore();
   const router = useRouter();
   const [serviceId, setServiceId] = useState(bookable.some((s) => s.id === preset) ? preset : "ic-dis-yikama");
   const [name, setName] = useState(session.name !== "Misafir" ? session.name : "Demo Müşteri");
@@ -42,6 +42,10 @@ function Form() {
     setError("");
     if (!name.trim() || !phone.trim() || !plate.trim()) {
       setError("Ad, telefon ve plaka zorunlu.");
+      return;
+    }
+    if (svc && slotConflicts(date, time, svc.id, appointments)) {
+      setError("Bu saat dolu. Boş bir aralık seçin.");
       return;
     }
     setPending(true);
@@ -97,9 +101,14 @@ function Form() {
               value={time}
               onChange={(e) => setTime(e.target.value)}
             >
-              {TIMES.map((t) => (
-                <option key={t}>{t}</option>
-              ))}
+              {SLOT_TIMES.map((t) => {
+                const busy = svc ? slotConflicts(date, t, svc.id, appointments) : false;
+                return (
+                  <option key={t} value={t} disabled={busy}>
+                    {t} {busy ? "— dolu" : "— boş"}
+                  </option>
+                );
+              })}
             </select>
           </div>
         </div>
@@ -115,14 +124,23 @@ function Form() {
       <aside className="rounded-xl border border-white/10 bg-zinc-900/50 p-5 text-sm text-zinc-400 md:col-span-2">
         <p className="text-[11px] tracking-widest text-amber-300 uppercase">Ne olur?</p>
         <ol className="mt-3 list-decimal space-y-2 pl-4">
-          <li>Talep Taleplerim kutusuna düşer — WhatsApp yok.</li>
-          <li>İş kaydı kuyrukta açılır; panodan onaylanır.</li>
-          <li>Durum: kuyrukta → yıkamada → kurulama → teslim.</li>
+          <li>Talep Taleplerim kutusuna düşer.</li>
+          <li>Randevu onayı slotu kilitler; saat gelince süreç başlamaz.</li>
+          <li>Yönetici girişi onaylayınca tahmini adımlar ve bildirimler başlar.</li>
         </ol>
         {svc ? (
-          <p className="mt-4 text-zinc-300">
-            {svc.name}: ~{svc.durationMin} dk
-          </p>
+          <div className="mt-4 space-y-2 text-zinc-300">
+            <p>
+              {svc.name}: ~{svc.durationMin} dk + {svc.bufferMin} dk tampon (defterde {occupancyMin(svc)} dk)
+            </p>
+            <ul className="space-y-1 text-xs text-zinc-500">
+              {svc.segments.map((seg) => (
+                <li key={seg.title}>
+                  {seg.title} · {seg.minutes} dk
+                </li>
+              ))}
+            </ul>
+          </div>
         ) : null}
         <p className="mt-3 text-xs text-zinc-600">Acil yolda kaldıysanız bu form değil, Yol yardım sayfasını kullanın.</p>
       </aside>
@@ -135,7 +153,7 @@ export default function RandevuPage() {
     <PublicShell>
       <div className="mx-auto max-w-6xl px-4 py-12">
         <h1 className="font-[family-name:var(--font-display)] text-4xl uppercase">Randevu</h1>
-        <p className="mt-2 max-w-xl text-sm text-zinc-400">Tarih, saat, plaka ve hizmet. Onay otomatik mesajla gelir.</p>
+        <p className="mt-2 max-w-xl text-sm text-zinc-400">Hizmet süresine göre boş / dolu saat. Süreç, randevu saatiyle değil giriş onayıyla başlar.</p>
         <div className="mt-8">
           <Suspense fallback={<LoadingBlock />}>
             <Form />

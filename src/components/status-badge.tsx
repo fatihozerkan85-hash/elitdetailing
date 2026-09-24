@@ -1,9 +1,12 @@
 import { Badge } from "@/components/ui/badge";
 import { JOB_FLOW, JOB_STATUS_LABEL, ROADSIDE_STATUS_LABEL } from "@/lib/catalog";
+import { jobClock } from "@/lib/process";
+import type { Job, ServiceSegment } from "@/lib/types";
 import { cn } from "@/lib/utils";
 
 export function StatusBadge({ status }: { status: string }) {
   const map: Record<string, string> = {
+    "giris-bekleniyor": "border-amber-400/40 bg-amber-400/15 text-amber-100",
     kuyrukta: "border-zinc-500/40 bg-zinc-500/15 text-zinc-200",
     yikamada: "border-sky-400/40 bg-sky-400/15 text-sky-200",
     kurulama: "border-amber-400/40 bg-amber-400/15 text-amber-100",
@@ -34,7 +37,51 @@ export function StatusBadge({ status }: { status: string }) {
   );
 }
 
-export function JobPipeline({ current }: { current: string }) {
+export function SegmentPipeline({
+  segments,
+  currentIndex,
+  started,
+}: {
+  segments: ServiceSegment[];
+  currentIndex: number;
+  started: boolean;
+}) {
+  if (!segments.length) return null;
+  const idx = started ? currentIndex : -1;
+  return (
+    <ol className="grid gap-1 sm:grid-cols-2 lg:grid-cols-4">
+      {segments.map((s, i) => (
+        <li
+          key={`${s.title}-${i}`}
+          className={cn(
+            "rounded-md border px-2 py-2 text-center",
+            started && i === idx
+              ? "border-amber-400/50 bg-amber-400/15 text-amber-100"
+              : started && i < idx
+                ? "border-emerald-400/30 bg-emerald-400/10 text-emerald-200"
+                : "border-white/10 text-zinc-500",
+          )}
+        >
+          <p className="text-[10px] tracking-wide uppercase">{s.title}</p>
+          <p className="mt-1 text-xs">{s.minutes} dk</p>
+        </li>
+      ))}
+    </ol>
+  );
+}
+
+export function JobPipeline({ current, job }: { current?: string; job?: Job }) {
+  if (job?.segments?.length) {
+    const clock = jobClock(job);
+    const started = Boolean(job.startedAt) && job.status !== "giris-bekleniyor";
+    return (
+      <SegmentPipeline
+        segments={job.segments}
+        currentIndex={clock.done ? job.segments.length : clock.index}
+        started={started}
+      />
+    );
+  }
   const idx = JOB_FLOW.indexOf(current as (typeof JOB_FLOW)[number]);
   return (
     <ol className="grid grid-cols-4 gap-1">

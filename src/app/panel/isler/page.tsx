@@ -7,6 +7,7 @@ import { StatusBadge } from "@/components/status-badge";
 import { Input } from "@/components/ui/input";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { tryFormat } from "@/lib/format";
+import { jobClock } from "@/lib/process";
 import { useStore } from "@/lib/store";
 import { useMemo, useState } from "react";
 
@@ -42,7 +43,7 @@ export default function IslerPage() {
               <div>
                 <p className="plate">{j.plate}</p>
                 <p className="text-zinc-500">
-                  {j.id} · {j.customerName} · {j.serviceName} · {tryFormat(j.estimate)}
+                  {j.id} · {j.customerName} · {j.startedAt ? jobClock(j).title : "Giriş bekleniyor"} · {tryFormat(j.estimate)}
                 </p>
               </div>
               <StatusBadge status={j.status} />

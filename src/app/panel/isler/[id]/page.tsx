@@ -9,6 +9,7 @@ import { JobPipeline, StatusBadge } from "@/components/status-badge";
 import { Button } from "@/components/ui/button";
 import { JOB_FLOW, JOB_STATUS_LABEL, ROADSIDE_STATUS_LABEL } from "@/lib/catalog";
 import { formatDateTime, tryFormat } from "@/lib/format";
+import { jobClock } from "@/lib/process";
 import { useStore } from "@/lib/store";
 import type { JobStatus, RoadsideStatus } from "@/lib/types";
 
@@ -16,7 +17,7 @@ const RS_FLOW: RoadsideStatus[] = ["alindi", "yonlendirildi", "yolda", "yerinde"
 
 export default function IsDetayPage() {
   const { id } = useParams<{ id: string }>();
-  const { jobs, roadside, technicians, customers, updateJobStatus, updateRoadsideStatus } = useStore();
+  const { jobs, roadside, technicians, customers, updateJobStatus, updateRoadsideStatus, checkInJob } = useStore();
   const job = jobs.find((j) => j.id === id);
   const call = roadside.find((r) => r.id === id);
 
@@ -72,8 +73,21 @@ export default function IsDetayPage() {
       {job ? (
         <>
           <div className="mt-6">
-            <JobPipeline current={job.status} />
+            <JobPipeline job={job} current={job.status} />
           </div>
+          {job.startedAt ? (
+            <p className="mt-3 text-sm text-zinc-400">
+              Şu an: {jobClock(job).title}
+              {jobClock(job).done ? " — tamam" : ` · kalan ~${Math.ceil(jobClock(job).remaining)} dk`}
+            </p>
+          ) : (
+            <p className="mt-3 text-sm text-amber-200/90">Sayaç kapalı. Randevu saati süreci başlatmaz — girişi onaylayın.</p>
+          )}
+          {!job.startedAt && job.status !== "iptal" && job.status !== "teslim" ? (
+            <Button className="mt-4" onClick={() => checkInJob(job.id)}>
+              Müşteri girişini onayla
+            </Button>
+          ) : null}
           <p className="mt-4 text-xs tracking-widest text-zinc-500 uppercase">Durum ilerlet</p>
           <div className="mt-2 flex flex-wrap gap-2">
             {JOB_FLOW.map((s) => (

@@ -61,7 +61,7 @@ export default function TakipPage() {
                     <p>
                       {row.serviceName} · {row.customerName}
                     </p>
-                    {row.type === "is" ? <JobPipeline current={row.status} /> : null}
+                    {row.type === "is" ? <JobPipeline job={row} current={row.status} /> : null}
                     <p className="text-xs">{formatDateTime(row.createdAt)}</p>
                   </CardContent>
                 </Card>

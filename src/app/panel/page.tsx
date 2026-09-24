@@ -11,7 +11,7 @@ import { todayISO, tryFormat } from "@/lib/format";
 import { useStore } from "@/lib/store";
 
 export default function PanelHome() {
-  const { appointments, jobs, roadside, notifications, updateAppointmentStatus, reset } = useStore();
+  const { appointments, jobs, roadside, notifications, updateAppointmentStatus, checkInAppointment, reset } = useStore();
   const today = todayISO();
   const todaysAppt = appointments.filter((a) => a.date === today);
   const live = jobs.filter((j) => j.status !== "teslim" && j.status !== "iptal");
@@ -72,8 +72,13 @@ export default function PanelHome() {
                 </p>
                 <p className="plate text-xs text-zinc-500">{a.plate}</p>
                 {a.status === "bekliyor" ? (
-                  <Button className="mt-2" size="sm" onClick={() => updateAppointmentStatus(a.id, "onaylandi")}>
-                    Onayla
+                  <Button className="mt-2" size="sm" variant="outline" onClick={() => updateAppointmentStatus(a.id, "onaylandi")}>
+                    Slot onayla
+                  </Button>
+                ) : null}
+                {jobs.find((j) => j.appointmentId === a.id && !j.startedAt && j.status !== "iptal") ? (
+                  <Button className="mt-2 ml-2" size="sm" onClick={() => checkInAppointment(a.id)}>
+                    Girişi onayla
                   </Button>
                 ) : null}
               </div>

@@ -36,9 +36,18 @@ export default function HizmetlerPage() {
                   <CardContent className="space-y-3 text-sm text-zinc-400">
                     <p>{s.description}</p>
                     <p className="text-zinc-300">
-                      Tipik süre <span className="text-amber-200">{s.durationMin} dk</span> · {tryFormat(s.fromPrice)}{" "}
-                      itibaren
+                      Tahmini süre <span className="text-amber-200">{s.durationMin} dk</span>
+                      <span className="text-zinc-500"> (+{s.bufferMin} dk tampon)</span>
+                      {" · "}
+                      {tryFormat(s.fromPrice)} itibaren
                     </p>
+                    <ul className="space-y-1 text-xs text-zinc-500">
+                      {s.segments.map((seg) => (
+                        <li key={seg.title}>
+                          {seg.title}: {seg.minutes} dk
+                        </li>
+                      ))}
+                    </ul>
                     <div>
                       <p className="text-[11px] tracking-widest text-zinc-500 uppercase">Temsilcisiz</p>
                       <ul className="mt-1 list-disc space-y-1 pl-4">

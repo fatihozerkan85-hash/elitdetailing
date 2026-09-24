@@ -1,6 +1,6 @@
 export type Role = "guest" | "customer" | "owner";
 
-export type JobStatus = "kuyrukta" | "yikamada" | "kurulama" | "teslim" | "iptal";
+export type JobStatus = "giris-bekleniyor" | "kuyrukta" | "yikamada" | "kurulama" | "teslim" | "iptal";
 
 export type RoadsideStatus =
   | "alindi"
@@ -26,6 +26,11 @@ export type Urgency = "normal" | "yuksek" | "kritik";
 
 export type RequestKind = "randevu" | "yol-yardim" | "is" | "aksesuar";
 
+export type ServiceSegment = {
+  title: string;
+  minutes: number;
+};
+
 export type Service = {
   id: string;
   category: ServiceCategory;
@@ -33,6 +38,8 @@ export type Service = {
   short: string;
   description: string;
   durationMin: number;
+  bufferMin: number;
+  segments: ServiceSegment[];
   fromPrice: number;
   selfService: string[];
 };
@@ -82,6 +89,11 @@ export type Job = {
   estimate: number;
   status: JobStatus;
   technicianId: string;
+  appointmentId?: string;
+  startedAt?: string;
+  currentSegmentIndex: number;
+  notifiedSegmentIndex: number;
+  segments: ServiceSegment[];
   createdAt: string;
   updatedAt: string;
   timeline: TimelineEvent[];

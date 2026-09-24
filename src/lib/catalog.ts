@@ -1,4 +1,4 @@
-import type { Accessory, Service } from "./types";
+import type { Accessory, Service, ServiceSegment } from "./types";
 
 export const BRAND = {
   name: "Elit Detailing",
@@ -22,7 +22,7 @@ export const CATEGORY_LABEL: Record<Service["category"], string> = {
   diger: "İlgili hizmetler",
 };
 
-export const SERVICES: Service[] = [
+const SERVICE_BASE: Omit<Service, "segments" | "bufferMin">[] = [
   {
     id: "dis-yikama",
     category: "yikama",
@@ -209,6 +209,109 @@ export const SERVICES: Service[] = [
   },
 ];
 
+const SERVICE_SEGMENTS: Record<string, ServiceSegment[]> = {
+  "dis-yikama": [
+    { title: "Hazırlık", minutes: 3 },
+    { title: "Dış yıkama", minutes: 12 },
+    { title: "Kurulama", minutes: 5 },
+  ],
+  "ic-dis-yikama": [
+    { title: "Hazırlık", minutes: 5 },
+    { title: "Dış yıkama", minutes: 15 },
+    { title: "İç temizlik", minutes: 18 },
+    { title: "Kurulama / teslim", minutes: 7 },
+  ],
+  "motor-yikama": [
+    { title: "Maskeleme", minutes: 5 },
+    { title: "Motor temizlik", minutes: 20 },
+    { title: "Kontrol", minutes: 5 },
+  ],
+  "detayli-ic": [
+    { title: "Hazırlık", minutes: 10 },
+    { title: "Derin iç temizlik", minutes: 90 },
+    { title: "Deri / kumaş bakım", minutes: 35 },
+    { title: "Kontrol / teslim", minutes: 15 },
+  ],
+  "dis-detailing": [
+    { title: "Kil ve yıkama", minutes: 40 },
+    { title: "Pasta", minutes: 100 },
+    { title: "Cila", minutes: 70 },
+    { title: "Kontrol", minutes: 30 },
+  ],
+  "boya-koruma": [
+    { title: "Keşif", minutes: 40 },
+    { title: "Yüzey hazırlık", minutes: 80 },
+    { title: "Kaplama uygulaması", minutes: 280 },
+    { title: "Kür / teslim", minutes: 80 },
+  ],
+  "far-restorasyon": [
+    { title: "Maskeleme", minutes: 8 },
+    { title: "Zımpara ve pasta", minutes: 27 },
+    { title: "Koruma / teslim", minutes: 10 },
+  ],
+  "koltuk-yikama": [
+    { title: "Vakum", minutes: 15 },
+    { title: "Yıkama", minutes: 50 },
+    { title: "Kurutma", minutes: 25 },
+  ],
+  "lastik-degisim": [
+    { title: "Söküm", minutes: 12 },
+    { title: "Montaj", minutes: 18 },
+    { title: "Tork / kontrol", minutes: 10 },
+  ],
+  "rot-balans": [
+    { title: "Ölçüm", minutes: 10 },
+    { title: "Balans", minutes: 25 },
+    { title: "Yol testi", minutes: 15 },
+  ],
+  "lastik-tamir": [
+    { title: "İnceleme", minutes: 5 },
+    { title: "Yama", minutes: 15 },
+    { title: "Kontrol", minutes: 5 },
+  ],
+  "yol-aku": [
+    { title: "Yola çıkış", minutes: 10 },
+    { title: "Varış", minutes: 20 },
+    { title: "Takviye", minutes: 10 },
+  ],
+  "yol-lastik": [
+    { title: "Yola çıkış", minutes: 10 },
+    { title: "Varış", minutes: 20 },
+    { title: "Lastik işlemi", minutes: 10 },
+  ],
+  cekici: [
+    { title: "Yönlendirme", minutes: 15 },
+    { title: "Yolda", minutes: 30 },
+    { title: "Yükleme", minutes: 15 },
+  ],
+  yakit: [
+    { title: "Yola çıkış", minutes: 10 },
+    { title: "İkmal", minutes: 25 },
+  ],
+  "klima-ozon": [
+    { title: "Hazırlık", minutes: 5 },
+    { title: "Ozon", minutes: 25 },
+    { title: "Havalandırma", minutes: 10 },
+  ],
+};
+
+const BUFFER_MIN: Record<string, number> = {
+  "dis-detailing": 20,
+  "detayli-ic": 15,
+  "boya-koruma": 30,
+};
+
+export const SERVICES: Service[] = SERVICE_BASE.map((s) => {
+  const segments = SERVICE_SEGMENTS[s.id] ?? [{ title: "İşlem", minutes: s.durationMin }];
+  const durationMin = segments.reduce((n, x) => n + x.minutes, 0);
+  return {
+    ...s,
+    durationMin,
+    bufferMin: BUFFER_MIN[s.id] ?? 10,
+    segments,
+  };
+});
+
 export const ACCESSORIES: Accessory[] = [
   {
     id: "acc-paspas",
@@ -312,6 +415,7 @@ export const FAQ = [
 ];
 
 export const JOB_STATUS_LABEL: Record<string, string> = {
+  "giris-bekleniyor": "Giriş bekleniyor",
   kuyrukta: "Kuyrukta",
   yikamada: "Yıkamada",
   kurulama: "Kurulama",

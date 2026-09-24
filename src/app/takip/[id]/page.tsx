@@ -8,6 +8,7 @@ import { EmptyState, LoadingBlock } from "@/components/site-header";
 import { JobPipeline, StatusBadge } from "@/components/status-badge";
 import { buttonVariants } from "@/components/ui/button";
 import { formatDateTime, tryFormat } from "@/lib/format";
+import { jobClock } from "@/lib/process";
 import { useStore } from "@/lib/store";
 import { cn } from "@/lib/utils";
 
@@ -64,7 +65,18 @@ export default function TakipDetayPage() {
 
         {job ? (
           <div className="mt-6">
-            <JobPipeline current={job.status} />
+            <JobPipeline job={job} current={job.status} />
+            {!job.startedAt ? (
+              <p className="mt-4 rounded-lg border border-amber-400/20 bg-amber-400/5 p-3 text-sm text-amber-100">
+                Randevu saati geldi diye süreç başlamaz. Tesise giriş yönetici tarafından onaylanınca adımlar ve bildirimler açılır.
+              </p>
+            ) : (
+              <p className="mt-4 text-sm text-zinc-300">
+                {jobClock(job).done
+                  ? "Tahmini süreç tamamlandı — teslim."
+                  : `Şu an: ${jobClock(job).title} · kalan ~${Math.ceil(jobClock(job).remaining)} dk`}
+              </p>
+            )}
             <dl className="mt-6 grid grid-cols-2 gap-4 text-sm">
               <div>
                 <dt className="text-zinc-500">Müşteri</dt>

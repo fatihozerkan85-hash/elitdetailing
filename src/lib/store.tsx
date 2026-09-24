@@ -11,6 +11,7 @@ import {
 } from "react";
 import { ACCESSORIES, CAMPAIGNS, DEMO, JOB_STATUS_LABEL, ROADSIDE_STATUS_LABEL, SERVICES } from "./catalog";
 import { uid } from "./format";
+import { jobClock, hydrateJob, segmentsFor } from "./process";
 import { buildSeed } from "./seed";
 import type {
   AccessoryOrder,
@@ -25,7 +26,7 @@ import type {
   Session,
 } from "./types";
 
-const KEY = "elit-detailing-v1";
+const KEY = "elit-detailing-v2";
 
 type Store = AppState & {
   ready: boolean;
@@ -63,6 +64,8 @@ type Store = AppState & {
     notes: string;
   }) => AccessoryOrder | null;
   updateJobStatus: (id: string, status: JobStatus, note?: string) => void;
+  checkInJob: (id: string) => void;
+  checkInAppointment: (appointmentId: string) => void;
   updateRoadsideStatus: (id: string, status: RoadsideStatus, note?: string) => void;
   updateAppointmentStatus: (id: string, status: Appointment["status"]) => void;
   updateOrderStatus: (id: string, status: AccessoryOrder["status"]) => void;
@@ -113,6 +116,7 @@ export function StoreProvider({ children }: { children: ReactNode }) {
             const merged: AppState = {
               ...seed,
               ...parsed,
+              jobs: (parsed.jobs ?? seed.jobs).map((j) => hydrateJob(j as Job)),
               coupons: parsed.coupons ?? seed.coupons,
               campaignNotif: parsed.campaignNotif ?? true,
               couponNotif: parsed.couponNotif ?? true,
@@ -200,15 +204,19 @@ export function StoreProvider({ children }: { children: ReactNode }) {
       serviceName: service.name,
       notes: input.notes,
       estimate: service.fromPrice,
-      status: "kuyrukta",
+      status: "giris-bekleniyor",
       technicianId: service.category === "lastik" ? "t-ali" : service.category === "detailing" ? "t-deniz" : "t-mehmet",
+      appointmentId: appt.id,
+      currentSegmentIndex: -1,
+      notifiedSegmentIndex: -1,
+      segments: segmentsFor(service.id),
       createdAt: new Date().toISOString(),
       updatedAt: new Date().toISOString(),
       timeline: [
         {
           at: new Date().toISOString(),
-          status: "kuyrukta",
-          note: `Randevu ${input.date} ${input.time} — otomatik kuyruk kaydı.`,
+          status: "giris-bekleniyor",
+          note: `Randevu ${input.date} ${input.time} alındı. Saat gelmesi süreci başlatmaz; giriş onayı bekleniyor.`,
         },
       ],
     };
@@ -225,7 +233,7 @@ export function StoreProvider({ children }: { children: ReactNode }) {
           {
             at: new Date().toISOString(),
             from: "sistem",
-            text: `${input.date} ${input.time} için randevu talebiniz alındı. Onaylandığında bu kutuya mesaj düşer. İş kodu: ${job.id}.`,
+            text: `${input.date} ${input.time} için randevu talebiniz alındı (${service.durationMin} dk, ${service.segments.length} adım). Saat gelince süreç başlamaz. Araç girişte onaylanınca sayaç ve bildirimler açılır. İş kodu: ${job.id}.`,
           },
         ],
       }),
@@ -331,6 +339,134 @@ export function StoreProvider({ children }: { children: ReactNode }) {
     return order;
   }, []);
 
+  const applyCheckIn = (s: AppState, jobId: string): AppState => {
+    const job = s.jobs.find((j) => j.id === jobId);
+    if (!job || job.startedAt || job.status === "iptal" || job.status === "teslim") return s;
+    const at = new Date().toISOString();
+    const first = job.segments[0];
+    return {
+      ...s,
+      jobs: s.jobs.map((j) =>
+        j.id === jobId
+          ? {
+              ...j,
+              startedAt: at,
+              status: "yikamada" as const,
+              currentSegmentIndex: 0,
+              notifiedSegmentIndex: 0,
+              updatedAt: at,
+              timeline: [
+                ...j.timeline,
+                {
+                  at,
+                  status: "yikamada",
+                  note: `Giriş onaylandı. Sayaç başladı${first ? ` — ${first.title} (${first.minutes} dk)` : ""}.`,
+                },
+              ],
+            }
+          : j,
+      ),
+      inbox: pushInbox(s.inbox, {
+        customerId: job.customerId,
+        kind: "is",
+        refId: job.id,
+        title: `${job.serviceName} — ${job.plate}`,
+        messages: [
+          {
+            at,
+            from: "sistem",
+            text: `WhatsApp: Aracınız tesise alındı. ${first ? `Şu an: ${first.title} (~${first.minutes} dk).` : "İşlem başladı."} Randevu saati süreci başlatmaz.`,
+          },
+        ],
+      }),
+      notifications: notify(s.notifications, {
+        title: "Giriş onaylandı",
+        body: `${job.id} · sayaç başladı`,
+        href: `/yonetici/isler/${job.id}`,
+      }),
+    };
+  };
+
+  const checkInJob = useCallback((id: string) => {
+    setState((s) => applyCheckIn(s, id));
+  }, []);
+
+  const checkInAppointment = useCallback((appointmentId: string) => {
+    setState((s) => {
+      const job = s.jobs.find((j) => j.appointmentId === appointmentId);
+      return job ? applyCheckIn(s, job.id) : s;
+    });
+  }, []);
+
+  const tickJobs = useCallback(() => {
+    setState((s) => {
+      let changed = false;
+      let inbox = s.inbox;
+      let notifications = s.notifications;
+      const jobs = s.jobs.map((job) => {
+        if (!job.startedAt || job.status === "iptal" || job.status === "teslim") return job;
+        const clock = jobClock(job);
+        const at = new Date().toISOString();
+        if (clock.done) {
+          changed = true;
+          inbox = pushInbox(inbox, {
+            customerId: job.customerId,
+            kind: "is",
+            refId: job.id,
+            title: `${job.serviceName} — ${job.plate}`,
+            messages: [
+              {
+                at,
+                from: "sistem",
+                text: "WhatsApp: Aracınız hazır, teslime alındı. Tahmini segmentler tamamlandı.",
+              },
+            ],
+          });
+          notifications = notify(notifications, {
+            title: "Teslim",
+            body: `${job.plate} hazır`,
+            href: `/yonetici/isler/${job.id}`,
+          });
+          return {
+            ...job,
+            status: "teslim" as const,
+            currentSegmentIndex: job.segments.length,
+            notifiedSegmentIndex: job.segments.length,
+            updatedAt: at,
+            timeline: [...job.timeline, { at, status: "teslim", note: "Tahmini süre doldu — teslim." }],
+          };
+        }
+        if (clock.index > job.notifiedSegmentIndex && clock.index >= 0) {
+          changed = true;
+          const seg = job.segments[clock.index];
+          inbox = pushInbox(inbox, {
+            customerId: job.customerId,
+            kind: "is",
+            refId: job.id,
+            title: `${job.serviceName} — ${job.plate}`,
+            messages: [
+              {
+                at,
+                from: "sistem",
+                text: `WhatsApp: Yeni adım — ${seg.title} (~${seg.minutes} dk). Takip ekranından izleyin.`,
+              },
+            ],
+          });
+          return {
+            ...job,
+            currentSegmentIndex: clock.index,
+            notifiedSegmentIndex: clock.index,
+            updatedAt: at,
+            timeline: [...job.timeline, { at, status: "yikamada", note: `Segment: ${seg.title}` }],
+          };
+        }
+        return job;
+      });
+      if (!changed) return s;
+      return { ...s, jobs, inbox, notifications };
+    });
+  }, []);
+
   const updateJobStatus = useCallback((id: string, status: JobStatus, note?: string) => {
     setState((s) => {
       const job = s.jobs.find((j) => j.id === id);
@@ -419,7 +555,7 @@ export function StoreProvider({ children }: { children: ReactNode }) {
               from: "sistem",
               text:
                 status === "onaylandi"
-                  ? `${appt.date} ${appt.time} randevunuz onaylandı. Plaka: ${appt.plate}.`
+                  ? `${appt.date} ${appt.time} randevunuz onaylandı. Plaka: ${appt.plate}. Süreç yine de giriş onayından sonra başlar.`
                   : `Randevu durumu: ${status}.`,
             },
           ],
@@ -487,6 +623,12 @@ export function StoreProvider({ children }: { children: ReactNode }) {
     }));
   }, []);
 
+  useEffect(() => {
+    if (!ready) return;
+    const t = setInterval(() => tickJobs(), 4000);
+    return () => clearInterval(t);
+  }, [ready, tickJobs]);
+
   const value = useMemo<Store>(
     () => ({
       ...state,
@@ -499,6 +641,8 @@ export function StoreProvider({ children }: { children: ReactNode }) {
       createRoadside,
       createAccessoryOrder,
       updateJobStatus,
+      checkInJob,
+      checkInAppointment,
       updateRoadsideStatus,
       updateAppointmentStatus,
       updateOrderStatus,
@@ -518,6 +662,8 @@ export function StoreProvider({ children }: { children: ReactNode }) {
       createRoadside,
       createAccessoryOrder,
       updateJobStatus,
+      checkInJob,
+      checkInAppointment,
       updateRoadsideStatus,
       updateAppointmentStatus,
       updateOrderStatus,
