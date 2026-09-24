@@ -2,6 +2,7 @@
 
 import Link from "next/link";
 import { PanelShell } from "@/components/panel-shell";
+import { GeoLink } from "@/components/geo-link";
 import { StatusBadge } from "@/components/status-badge";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
@@ -112,6 +113,7 @@ export default function PanelHome() {
                 </div>
                 <p className="mt-1 plate">{r.plate}</p>
                 <p className="line-clamp-2 text-xs text-zinc-500">{r.location}</p>
+                <GeoLink lat={r.lat} lng={r.lng} accuracyM={r.accuracyM} />
                 <StatusBadge status={r.status} />
               </Link>
             ))}

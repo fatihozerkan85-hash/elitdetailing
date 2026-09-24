@@ -222,7 +222,7 @@ export default function Home() {
                     <span className="service-duration">⏱ {svc.duration}</span>
                   </div>
                 </div>
-                <button className="btn-gold service-select" type="button" onClick={()=>navigate('/login')}>Seç →</button>
+                <button className="btn-gold service-select" type="button" onClick={()=>navigate(svc.id===7?'/yol-yardim':'/login')}>Seç →</button>
               </div>
             ))}
           </div>

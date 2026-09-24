@@ -3,6 +3,7 @@
 import Link from "next/link";
 import { useParams } from "next/navigation";
 import { PublicShell } from "@/components/public-shell";
+import { GeoLink } from "@/components/geo-link";
 import { EmptyState, LoadingBlock } from "@/components/site-header";
 import { JobPipeline, StatusBadge } from "@/components/status-badge";
 import { buttonVariants } from "@/components/ui/button";
@@ -95,6 +96,7 @@ export default function TakipDetayPage() {
         ) : (
           <div className="mt-6 space-y-4 text-sm">
             <p className="rounded-lg border border-white/10 p-3 text-zinc-300">{call!.location}</p>
+            <GeoLink lat={call!.lat} lng={call!.lng} accuracyM={call!.accuracyM} />
             <p className="text-zinc-400">Ekip: {tech?.name ?? "Yönlendirme bekleniyor"}</p>
             <ol className="space-y-3 border-l border-white/10 pl-4">
               {call!.timeline.map((e, i) => (

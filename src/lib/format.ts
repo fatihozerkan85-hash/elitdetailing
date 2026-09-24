@@ -38,6 +38,11 @@ export function uid(prefix: string) {
   return `${prefix}-${Math.random().toString(36).slice(2, 7).toUpperCase()}`;
 }
 
-export function platePretty(p: string) {
-  return p.replace(/\s+/g, " ").toUpperCase();
+export function mapsUrl(lat: number, lng: number) {
+  return `https://www.google.com/maps?q=${lat},${lng}`;
+}
+
+export function formatCoords(lat: number, lng: number, accuracyM?: number) {
+  const pin = `${lat.toFixed(5)}, ${lng.toFixed(5)}`;
+  return accuracyM != null && Number.isFinite(accuracyM) ? `${pin} (±${Math.round(accuracyM)} m)` : pin;
 }

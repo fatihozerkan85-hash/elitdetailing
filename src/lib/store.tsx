@@ -49,6 +49,9 @@ type Store = AppState & {
     plate: string;
     vehicle: string;
     location: string;
+    lat?: number;
+    lng?: number;
+    accuracyM?: number;
     issue: string;
     urgency: RoadsideCall["urgency"];
   }) => RoadsideCall;
@@ -244,6 +247,9 @@ export function StoreProvider({ children }: { children: ReactNode }) {
       plate: input.plate.toUpperCase(),
       vehicle: input.vehicle,
       location: input.location,
+      lat: input.lat,
+      lng: input.lng,
+      accuracyM: input.accuracyM,
       issue: input.issue,
       urgency: input.urgency,
       status: "alindi",
@@ -253,7 +259,9 @@ export function StoreProvider({ children }: { children: ReactNode }) {
         {
           at: new Date().toISOString(),
           status: "alindi",
-          note: "Otomatik kayıt — ekip ataması bekleniyor.",
+          note: input.lat != null && input.lng != null
+            ? `Otomatik kayıt — GPS pin alındı. Ekip ataması bekleniyor.`
+            : "Otomatik kayıt — ekip ataması bekleniyor.",
         },
       ],
     };
@@ -269,7 +277,7 @@ export function StoreProvider({ children }: { children: ReactNode }) {
           {
             at: new Date().toISOString(),
             from: "sistem",
-            text: `${call.id} alındı (${input.urgency}). Konum notunuz operatöre iletildi. Arama yapmadan bu ekrandan takip edin.`,
+            text: `${call.id} alındı (${input.urgency}). ${input.lat != null && input.lng != null ? "GPS konumu eklendi. " : ""}Konum notunuz operatöre iletildi. Arama yapmadan bu ekrandan takip edin.`,
           },
         ],
       }),

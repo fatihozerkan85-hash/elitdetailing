@@ -3,6 +3,7 @@
 import Link from "next/link";
 import { useParams } from "next/navigation";
 import { PanelShell } from "@/components/panel-shell";
+import { GeoLink } from "@/components/geo-link";
 import { EmptyState } from "@/components/site-header";
 import { JobPipeline, StatusBadge } from "@/components/status-badge";
 import { Button } from "@/components/ui/button";
@@ -103,6 +104,9 @@ export default function IsDetayPage() {
       ) : (
         <>
           <p className="mt-6 rounded-lg border border-white/10 p-3 text-sm">{call!.location}</p>
+          <div className="mt-2">
+            <GeoLink lat={call!.lat} lng={call!.lng} accuracyM={call!.accuracyM} />
+          </div>
           <div className="mt-4 flex flex-wrap gap-2">
             {RS_FLOW.map((s) => (
               <Button

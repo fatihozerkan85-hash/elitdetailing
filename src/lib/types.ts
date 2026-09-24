@@ -111,6 +111,9 @@ export type RoadsideCall = {
   plate: string;
   vehicle: string;
   location: string;
+  lat?: number;
+  lng?: number;
+  accuracyM?: number;
   issue: string;
   urgency: Urgency;
   status: RoadsideStatus;
