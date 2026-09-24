@@ -229,7 +229,7 @@ export function StoreProvider({ children }: { children: ReactNode }) {
       notifications: notify(s.notifications, {
         title: "Yeni randevu",
         body: `${appt.id} · ${input.name} · ${service.name}`,
-        href: `/panel/isler/${job.id}`,
+        href: `/yonetici/isler/${job.id}`,
       }),
     }));
     return appt;
@@ -276,7 +276,7 @@ export function StoreProvider({ children }: { children: ReactNode }) {
       notifications: notify(s.notifications, {
         title: "Yeni yol yardım",
         body: `${call.id} · ${input.urgency} · ${input.plate}`,
-        href: `/panel/isler/${call.id}`,
+        href: `/yonetici/isler/${call.id}`,
       }),
     }));
     return call;
@@ -317,7 +317,7 @@ export function StoreProvider({ children }: { children: ReactNode }) {
       notifications: notify(s.notifications, {
         title: "Aksesuar talebi",
         body: `${order.id} · ${acc.name} ×${input.qty}`,
-        href: "/panel",
+        href: "/yonetici",
       }),
     }));
     return order;

@@ -356,6 +356,9 @@ export const DEMO = {
   customerName: "Demo Müşteri",
 };
 
+/** Gizli işletme paneli. Kamu sitede link yok. */
+export const ADMIN_PATH = "/yonetici";
+
 export const CAMPAIGNS = [
   {
     id: "cmp-seramik",

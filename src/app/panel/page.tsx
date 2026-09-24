@@ -47,7 +47,7 @@ export default function PanelHome() {
       </div>
       {unread > 0 ? (
         <p className="mt-4 text-sm">
-          <Link href="/panel/bildirimler" className="text-amber-300 hover:underline">
+          <Link href="/yonetici/bildirimler" className="text-amber-300 hover:underline">
             {unread} okunmamış bildirim
           </Link>
         </p>
@@ -87,7 +87,7 @@ export default function PanelHome() {
           <CardContent className="space-y-3">
             {live.length === 0 ? <p className="text-sm text-zinc-500">Açık iş yok.</p> : null}
             {live.map((j) => (
-              <Link key={j.id} href={`/panel/isler/${j.id}`} className="block rounded-lg border border-white/10 p-3 text-sm hover:border-amber-400/30">
+              <Link key={j.id} href={`/yonetici/isler/${j.id}`} className="block rounded-lg border border-white/10 p-3 text-sm hover:border-amber-400/30">
                 <div className="flex justify-between">
                   <span className="plate">{j.plate}</span>
                   <StatusBadge status={j.status} />
@@ -105,7 +105,7 @@ export default function PanelHome() {
           <CardContent className="space-y-3">
             {openRs.length === 0 ? <p className="text-sm text-zinc-500">Açık çağrı yok.</p> : null}
             {openRs.map((r) => (
-              <Link key={r.id} href={`/panel/isler/${r.id}`} className="block rounded-lg border border-white/10 p-3 text-sm hover:border-amber-400/30">
+              <Link key={r.id} href={`/yonetici/isler/${r.id}`} className="block rounded-lg border border-white/10 p-3 text-sm hover:border-amber-400/30">
                 <div className="flex justify-between">
                   <span>{r.id}</span>
                   <StatusBadge status={r.urgency} />

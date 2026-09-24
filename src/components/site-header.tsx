@@ -51,7 +51,7 @@ export function SiteHeader({ variant = "public" }: { variant?: "public" | "panel
   return (
     <header className="sticky top-0 z-40 border-b border-white/10 bg-[#0b0c0e]/90 backdrop-blur-md">
       <div className="mx-auto flex h-[4.75rem] max-w-6xl items-center justify-between gap-3 px-4 sm:h-20">
-        <BrandMark href={variant === "panel" ? "/panel" : "/"} />
+        <BrandMark href={variant === "panel" ? "/yonetici" : "/"} />
 
         {variant === "public" && (
           <nav className="hidden items-center gap-0.5 lg:flex">
@@ -84,11 +84,11 @@ export function SiteHeader({ variant = "public" }: { variant?: "public" | "panel
                 Acil
               </Link>
               <Link
-                href={session.role === "owner" ? "/panel" : "/giris"}
+                href={session.role === "customer" ? "/profil" : "/giris"}
                 className={cn(buttonVariants({ variant: "outline", size: "sm" }))}
               >
                 <Shield className="size-3.5" />
-                {session.role === "owner" ? "Panel" : session.role === "customer" ? session.name.split(" ")[0] : "Giriş"}
+                {session.role === "customer" ? session.name.split(" ")[0] : "Giriş"}
               </Link>
               <Sheet>
                 <SheetTrigger className={cn(buttonVariants({ variant: "ghost", size: "icon" }), "lg:hidden")}>
@@ -111,7 +111,7 @@ export function SiteHeader({ variant = "public" }: { variant?: "public" | "panel
                       Profil
                     </Link>
                     <Link href="/giris" className="rounded-md px-3 py-2 text-sm hover:bg-white/5">
-                      Giriş / panel
+                      Giriş
                     </Link>
                   </div>
                 </SheetContent>
@@ -120,7 +120,7 @@ export function SiteHeader({ variant = "public" }: { variant?: "public" | "panel
           )}
           {variant === "panel" && (
             <>
-              <Link href="/panel/bildirimler" className="text-xs text-amber-300">
+              <Link href="/yonetici/bildirimler" className="text-xs text-amber-300">
                 {unreadN > 0 ? `${unreadN} bildirim` : "Bildirimler"}
               </Link>
               <Link href="/" className={cn(buttonVariants({ variant: "ghost", size: "sm" }))}>

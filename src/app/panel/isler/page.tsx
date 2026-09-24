@@ -36,7 +36,7 @@ export default function IslerPage() {
           {jf.map((j) => (
             <Link
               key={j.id}
-              href={`/panel/isler/${j.id}`}
+              href={`/yonetici/isler/${j.id}`}
               className="flex items-center justify-between gap-3 rounded-lg border border-white/10 p-3 text-sm hover:border-amber-400/30"
             >
               <div>
@@ -54,7 +54,7 @@ export default function IslerPage() {
           {rf.map((r) => (
             <Link
               key={r.id}
-              href={`/panel/isler/${r.id}`}
+              href={`/yonetici/isler/${r.id}`}
               className="flex items-center justify-between gap-3 rounded-lg border border-white/10 p-3 text-sm hover:border-amber-400/30"
             >
               <div>

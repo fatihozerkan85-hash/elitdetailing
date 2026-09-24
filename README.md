@@ -18,7 +18,7 @@ Canlı: [https://elitdetailing.vercel.app](https://elitdetailing.vercel.app)
 | Rol | Giriş |
 |-----|--------|
 | Müşteri | `/giris` · telefon `05551234567` |
-| Sahip | `/giris` · PIN **`2580`** |
+| Yönetici | `/yonetici` veya `/yönetici` · PIN **`2580`** |
 
 Veri: `localStorage` anahtarı `elit-detailing-v1`.
 
@@ -26,7 +26,7 @@ Veri: `localStorage` anahtarı `elit-detailing-v1`.
 
 Müşteri: `/` `/hizmetler` `/randevu` `/yol-yardim` `/takip` `/aksesuar` `/kampanyalar` `/kuponlar` `/bildirimler` `/taleplerim` `/sss` `/profil`
 
-Panel: `/panel` işler, randevular, yol-yardım, müşteriler, personel, stok, kampanyalar, kuponlar, gelir, bildirimler
+Yönetici: `/yonetici` işler, randevular, yol-yardım, müşteriler, personel, stok, kampanyalar, kuponlar, gelir, bildirimler. Kamu sitede link yok.
 
 Mobilde alt menü: Ana, Hizmetler, Randevu, Takip, Profil.
 

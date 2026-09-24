@@ -21,17 +21,17 @@ const MUSTERI = [
 ];
 
 const PANEL = [
-  { src: "/taslak/isletme-gunun-panosu.png", title: "Günün panosu", href: "/panel", note: "KPI, canlı iş, yol yardım." },
-  { src: "/taslak/panel-isler.png", title: "İşler", href: "/panel/isler", note: "Atölye listesi." },
-  { src: "/taslak/panel-yol-yardim.png", title: "Yol yardım", href: "/panel/isler", note: "Açık çağrılar." },
-  { src: "/taslak/panel-randevular.png", title: "Randevular", href: "/panel", note: "Onay aksiyonu." },
-  { src: "/taslak/panel-musteriler.png", title: "Müşteriler", href: "/panel/musteriler", note: "Plaka rehberi." },
-  { src: "/taslak/panel-personel.png", title: "Personel", href: "/panel/personel", note: "Yük çubukları." },
-  { src: "/taslak/panel-gelir.png", title: "Gelir", href: "/panel/gelir", note: "Teslim + aksesuar." },
-  { src: "/taslak/panel-stok.png", title: "Stok (ileri)", href: "/panel/gelir", note: "Aksesuar siparişleri." },
-  { src: "/taslak/panel-bildirimler.png", title: "Bildirimler", href: "/panel/bildirimler", note: "Yeni talepler." },
-  { src: "/taslak/panel-kampanyalar.png", title: "Kampanya (ileri)", href: "/panel", note: "Taslak." },
-  { src: "/taslak/panel-kuponlar.png", title: "Kupon (ileri)", href: "/panel", note: "Taslak." },
+  { src: "/taslak/isletme-gunun-panosu.png", title: "Günün panosu", href: "/yonetici", note: "KPI, canlı iş, yol yardım." },
+  { src: "/taslak/panel-isler.png", title: "İşler", href: "/yonetici/isler", note: "Atölye listesi." },
+  { src: "/taslak/panel-yol-yardim.png", title: "Yol yardım", href: "/yonetici/isler", note: "Açık çağrılar." },
+  { src: "/taslak/panel-randevular.png", title: "Randevular", href: "/yonetici", note: "Onay aksiyonu." },
+  { src: "/taslak/panel-musteriler.png", title: "Müşteriler", href: "/yonetici/musteriler", note: "Plaka rehberi." },
+  { src: "/taslak/panel-personel.png", title: "Personel", href: "/yonetici/personel", note: "Yük çubukları." },
+  { src: "/taslak/panel-gelir.png", title: "Gelir", href: "/yonetici/gelir", note: "Teslim + aksesuar." },
+  { src: "/taslak/panel-stok.png", title: "Stok (ileri)", href: "/yonetici/gelir", note: "Aksesuar siparişleri." },
+  { src: "/taslak/panel-bildirimler.png", title: "Bildirimler", href: "/yonetici/bildirimler", note: "Yeni talepler." },
+  { src: "/taslak/panel-kampanyalar.png", title: "Kampanya (ileri)", href: "/yonetici", note: "Taslak." },
+  { src: "/taslak/panel-kuponlar.png", title: "Kupon (ileri)", href: "/yonetici", note: "Taslak." },
 ];
 
 function Frame({ src, title, href, note }: { src: string; title: string; href: string; note: string }) {

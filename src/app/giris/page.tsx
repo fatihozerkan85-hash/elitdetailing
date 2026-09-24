@@ -12,22 +12,20 @@ import { DEMO } from "@/lib/catalog";
 import { useStore } from "@/lib/store";
 
 function LoginInner() {
-  const { loginCustomer, loginOwner, session, logout, ready } = useStore();
+  const { loginCustomer, session, logout } = useStore();
   const router = useRouter();
   const params = useSearchParams();
-  const next = params.get("next") ?? "/panel";
+  const next = params.get("next") ?? "/taleplerim";
   const [phone, setPhone] = useState(DEMO.customerPhone);
-  const [pin, setPin] = useState(DEMO.ownerPin);
-  const [err, setErr] = useState("");
 
   return (
-    <div className="grid gap-8 md:grid-cols-2">
+    <div className="max-w-md">
       <form
         className="space-y-4 rounded-xl border border-white/10 p-6"
         onSubmit={(e) => {
           e.preventDefault();
           loginCustomer(phone);
-          router.push("/taleplerim");
+          router.push(next.startsWith("/") && !next.startsWith("/yonetici") && !next.startsWith("/panel") ? next : "/taleplerim");
         }}
       >
         <h2 className="font-[family-name:var(--font-display)] text-xl uppercase">Müşteri</h2>
@@ -39,32 +37,8 @@ function LoginInner() {
         <Button type="submit">Müşteri olarak gir</Button>
         <p className="text-xs text-zinc-600">Örnek: {DEMO.customerPhone}</p>
       </form>
-      <form
-        className="space-y-4 rounded-xl border border-amber-500/20 bg-amber-500/5 p-6"
-        onSubmit={(e) => {
-          e.preventDefault();
-          if (!ready) {
-            setErr("Oturum henüz hazır değil, bir saniye sonra tekrar deneyin.");
-            return;
-          }
-          if (!loginOwner(pin)) {
-            setErr("PIN hatalı.");
-            return;
-          }
-          router.push(next.startsWith("/") ? next : "/panel");
-        }}
-      >
-        <h2 className="font-[family-name:var(--font-display)] text-xl uppercase">İşletme sahibi</h2>
-        <p className="text-sm text-zinc-500">Operasyon panosu. Demo PIN: {DEMO.ownerPin}</p>
-        <div className="grid gap-2">
-          <Label>PIN</Label>
-          <Input type="password" value={pin} onChange={(e) => setPin(e.target.value)} />
-        </div>
-        {err ? <p className="text-sm text-red-300">{err}</p> : null}
-        <Button type="submit">Panele gir</Button>
-      </form>
-      {session.role !== "guest" ? (
-        <p className="text-sm text-zinc-500 md:col-span-2">
+      {session.role === "customer" ? (
+        <p className="mt-4 text-sm text-zinc-500">
           Şu an: {session.name}{" "}
           <button className="text-amber-300" type="button" onClick={logout}>
             çıkış
@@ -80,7 +54,7 @@ export default function GirisPage() {
     <PublicShell>
       <div className="mx-auto max-w-4xl px-4 py-12">
         <h1 className="font-[family-name:var(--font-display)] text-4xl uppercase">Giriş</h1>
-        <p className="mt-2 text-sm text-zinc-400">Kimlik doğrulama yok — tarayıcı oturumu. Canlıya alınca gerçek auth gerekir.</p>
+        <p className="mt-2 text-sm text-zinc-400">Müşteri oturumu. Yönetici paneli bu sayfada yoktur.</p>
         <div className="mt-8">
           <Suspense fallback={<LoadingBlock />}>
             <LoginInner />

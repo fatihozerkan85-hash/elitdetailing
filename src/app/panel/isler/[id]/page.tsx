@@ -22,7 +22,7 @@ export default function IsDetayPage() {
   if (!job && !call) {
     return (
       <PanelShell>
-        <EmptyState title="Kayıt yok" hint="Kod bulunamadı." action={<Link href="/panel/isler">Liste</Link>} />
+        <EmptyState title="Kayıt yok" hint="Kod bulunamadı." action={<Link href="/yonetici/isler">Liste</Link>} />
       </PanelShell>
     );
   }
@@ -32,7 +32,7 @@ export default function IsDetayPage() {
 
   return (
     <PanelShell>
-      <Link href="/panel/isler" className="text-xs text-zinc-500">
+      <Link href="/yonetici/isler" className="text-xs text-zinc-500">
         ← İşler
       </Link>
       <div className="mt-3 flex flex-wrap items-start justify-between gap-3">
