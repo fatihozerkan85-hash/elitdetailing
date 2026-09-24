@@ -152,11 +152,11 @@ export default function YolYardimPage() {
               value={issue}
               onChange={(e) => setIssue(e.target.value)}
             >
-              <option>Akü takviye</option>
-              <option>Yolda lastik / stepne</option>
-              <option>Çekici</option>
-              <option>Yakıt bitti</option>
-              <option>Diğer — notta belirtildi</option>
+              <option style={{ color: "#111", backgroundColor: "#fff" }}>Akü takviye</option>
+              <option style={{ color: "#111", backgroundColor: "#fff" }}>Yolda lastik / stepne</option>
+              <option style={{ color: "#111", backgroundColor: "#fff" }}>Çekici</option>
+              <option style={{ color: "#111", backgroundColor: "#fff" }}>Yakıt bitti</option>
+              <option style={{ color: "#111", backgroundColor: "#fff" }}>Diğer — notta belirtildi</option>
             </select>
           </div>
           <fieldset className="grid gap-2">

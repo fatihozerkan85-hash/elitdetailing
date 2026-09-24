@@ -66,7 +66,7 @@ export default function GelirPage() {
                     onChange={(e) => updateOrderStatus(o.id, e.target.value as typeof o.status)}
                   >
                     {Object.entries(ORDER_STATUS_LABEL).map(([k, v]) => (
-                      <option key={k} value={k}>
+                      <option key={k} value={k} style={{ color: "#111", backgroundColor: "#fff" }}>
                         {v}
                       </option>
                     ))}

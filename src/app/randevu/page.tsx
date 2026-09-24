@@ -66,7 +66,7 @@ function Form() {
             onChange={(e) => setServiceId(e.target.value)}
           >
             {bookable.map((s) => (
-              <option key={s.id} value={s.id}>
+              <option key={s.id} value={s.id} style={{ color: "#111", backgroundColor: "#fff" }}>
                 {s.name}
               </option>
             ))}
@@ -104,7 +104,7 @@ function Form() {
               {SLOT_TIMES.map((t) => {
                 const busy = svc ? slotConflicts(date, t, svc.id, appointments) : false;
                 return (
-                  <option key={t} value={t} disabled={busy}>
+                  <option key={t} value={t} disabled={busy} style={{ color: "#111", backgroundColor: "#fff" }}>
                     {t} {busy ? "— dolu" : "— boş"}
                   </option>
                 );
