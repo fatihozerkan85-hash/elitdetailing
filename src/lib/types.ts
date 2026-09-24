@@ -155,7 +155,7 @@ export type InboxItem = {
   kind: RequestKind;
   refId: string;
   title: string;
-  messages: { at: string; from: "sistem" | "musteri"; text: string }[];
+  messages: { at: string; from: "sistem" | "musteri"; text: string; channel?: "whatsapp"; waUrl?: string }[];
   unread: boolean;
   createdAt: string;
 };
@@ -187,6 +187,16 @@ export type Coupon = {
   status: CouponStatus;
 };
 
+export type WhatsAppOutboxItem = {
+  id: string;
+  phone: string;
+  text: string;
+  url: string;
+  jobId?: string;
+  at: string;
+  status: "queued" | "api" | "link";
+};
+
 export type AppState = {
   session: Session;
   customers: Customer[];
@@ -197,6 +207,7 @@ export type AppState = {
   accessoryOrders: AccessoryOrder[];
   inbox: InboxItem[];
   notifications: Notification[];
+  whatsappOutbox: WhatsAppOutboxItem[];
   coupons: Coupon[];
   campaignNotif: boolean;
   couponNotif: boolean;

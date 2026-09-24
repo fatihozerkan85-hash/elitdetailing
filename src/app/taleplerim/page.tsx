@@ -22,7 +22,7 @@ export default function TaleplerimPage() {
       <div className="mx-auto max-w-3xl px-4 py-12">
         <h1 className="font-[family-name:var(--font-display)] text-4xl uppercase">Taleplerim</h1>
         <p className="mt-2 text-sm text-zinc-400">
-          WhatsApp yerine otomatik durum kutusu. Randevu, yol yardım, iş ve aksesuar mesajları burada.
+          Her adımda WhatsApp metni üretilir; aynı kayıt burada da durur.
         </p>
         {!ready ? (
           <LoadingBlock />
@@ -63,9 +63,14 @@ export default function TaleplerimPage() {
                     {item.messages.map((m, i) => (
                       <div key={i} className="rounded-lg bg-white/5 p-3 text-sm text-zinc-300">
                         <p className="text-[10px] tracking-widest text-zinc-500 uppercase">
-                          {m.from === "sistem" ? "Sistem" : "Siz"} · {formatDateTime(m.at)}
+                          {m.channel === "whatsapp" ? "WhatsApp" : m.from === "sistem" ? "Sistem" : "Siz"} · {formatDateTime(m.at)}
                         </p>
-                        <p className="mt-1">{m.text}</p>
+                        <p className="mt-1 whitespace-pre-line">{m.text}</p>
+                        {m.waUrl ? (
+                          <a href={m.waUrl} target="_blank" rel="noreferrer" className="mt-2 inline-block text-xs text-emerald-300 hover:underline">
+                            WhatsApp’ta aç
+                          </a>
+                        ) : null}
                       </div>
                     ))}
                     <Link href={item.kind === "yol-yardim" || item.kind === "is" ? `/takip/${item.refId}` : "/takip"} className="text-xs text-amber-300 hover:underline">

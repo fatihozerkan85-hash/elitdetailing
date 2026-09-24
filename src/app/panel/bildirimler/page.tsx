@@ -8,7 +8,7 @@ import { formatDateTime } from "@/lib/format";
 import { useStore } from "@/lib/store";
 
 export default function BildirimlerPage() {
-  const { notifications, markAllNotificationsRead } = useStore();
+  const { notifications, markAllNotificationsRead, whatsappOutbox } = useStore();
   return (
     <PanelShell>
       <div className="flex items-center justify-between gap-3">
@@ -17,6 +17,25 @@ export default function BildirimlerPage() {
           Tümünü okundu say
         </Button>
       </div>
+      <h2 className="mt-8 text-sm tracking-widest text-zinc-500 uppercase">WhatsApp kuyruğu</h2>
+      {whatsappOutbox.length === 0 ? (
+        <p className="mt-2 text-sm text-zinc-500">Henüz WhatsApp mesajı yok. Giriş onayı veya yeni adım üretince düşer.</p>
+      ) : (
+        <ul className="mt-3 space-y-2">
+          {whatsappOutbox.map((w) => (
+            <li key={w.id} className="rounded-lg border border-emerald-400/20 bg-emerald-400/5 p-3 text-sm">
+              <p className="text-xs text-zinc-500">
+                {w.phone} · {formatDateTime(w.at)}
+              </p>
+              <p className="mt-1 whitespace-pre-line text-zinc-200">{w.text}</p>
+              <a href={w.url} target="_blank" rel="noreferrer" className="mt-2 inline-block text-xs text-emerald-300 hover:underline">
+                WhatsApp’tan gönder
+              </a>
+            </li>
+          ))}
+        </ul>
+      )}
+      <h2 className="mt-10 text-sm tracking-widest text-zinc-500 uppercase">Panel bildirimleri</h2>
       {notifications.length === 0 ? (
         <div className="mt-8">
           <EmptyState title="Bildirim yok" hint="Yeni randevu ve yol yardım burada belirir." />

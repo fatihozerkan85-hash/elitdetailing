@@ -13,6 +13,7 @@ import { ACCESSORIES, CAMPAIGNS, DEMO, JOB_STATUS_LABEL, ROADSIDE_STATUS_LABEL, 
 import { uid } from "./format";
 import { jobClock, hydrateJob, segmentsFor } from "./process";
 import { buildSeed } from "./seed";
+import { statusWhatsAppText, waMeUrl } from "./whatsapp";
 import type {
   AccessoryOrder,
   Appointment,
@@ -101,6 +102,29 @@ function notify(list: Notification[], n: Omit<Notification, "id" | "at" | "read"
   ];
 }
 
+function pushWhatsApp(
+  outbox: AppState["whatsappOutbox"],
+  input: { phone: string; text: string; jobId?: string },
+) {
+  const item = {
+    id: uid("WA"),
+    phone: input.phone,
+    text: input.text,
+    url: waMeUrl(input.phone, input.text),
+    jobId: input.jobId,
+    at: new Date().toISOString(),
+    status: "queued" as const,
+  };
+  if (typeof fetch !== "undefined") {
+    void fetch("/api/whatsapp", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ phone: input.phone, text: input.text }),
+    }).catch(() => undefined);
+  }
+  return { outbox: [item, ...outbox], item };
+}
+
 export function StoreProvider({ children }: { children: ReactNode }) {
   const [state, setState] = useState<AppState>(() => buildSeed());
   const [ready, setReady] = useState(false);
@@ -117,6 +141,7 @@ export function StoreProvider({ children }: { children: ReactNode }) {
               ...seed,
               ...parsed,
               jobs: (parsed.jobs ?? seed.jobs).map((j) => hydrateJob(j as Job)),
+              whatsappOutbox: parsed.whatsappOutbox ?? [],
               coupons: parsed.coupons ?? seed.coupons,
               campaignNotif: parsed.campaignNotif ?? true,
               couponNotif: parsed.couponNotif ?? true,
@@ -344,6 +369,12 @@ export function StoreProvider({ children }: { children: ReactNode }) {
     if (!job || job.startedAt || job.status === "iptal" || job.status === "teslim") return s;
     const at = new Date().toISOString();
     const first = job.segments[0];
+    const waText = statusWhatsAppText({
+      plate: job.plate,
+      service: job.serviceName,
+      body: `Aracınız tesise alındı.${first ? ` Şu an: ${first.title} (~${first.minutes} dk).` : ""}`,
+    });
+    const wa = pushWhatsApp(s.whatsappOutbox, { phone: job.phone, text: waText, jobId: job.id });
     return {
       ...s,
       jobs: s.jobs.map((j) =>
@@ -375,26 +406,42 @@ export function StoreProvider({ children }: { children: ReactNode }) {
           {
             at,
             from: "sistem",
-            text: `WhatsApp: Aracınız tesise alındı. ${first ? `Şu an: ${first.title} (~${first.minutes} dk).` : "İşlem başladı."} Randevu saati süreci başlatmaz.`,
+            channel: "whatsapp",
+            waUrl: wa.item.url,
+            text: waText,
           },
         ],
       }),
       notifications: notify(s.notifications, {
-        title: "Giriş onaylandı",
-        body: `${job.id} · sayaç başladı`,
+        title: "WhatsApp gönderildi",
+        body: `${job.plate} · giriş onayı`,
         href: `/yonetici/isler/${job.id}`,
       }),
+      whatsappOutbox: wa.outbox,
     };
   };
 
   const checkInJob = useCallback((id: string) => {
-    setState((s) => applyCheckIn(s, id));
+    setState((s) => {
+      const next = applyCheckIn(s, id);
+      const sent = next.whatsappOutbox[0];
+      if (next !== s && sent && typeof window !== "undefined") {
+        window.open(sent.url, "_blank", "noopener,noreferrer");
+      }
+      return next;
+    });
   }, []);
 
   const checkInAppointment = useCallback((appointmentId: string) => {
     setState((s) => {
       const job = s.jobs.find((j) => j.appointmentId === appointmentId);
-      return job ? applyCheckIn(s, job.id) : s;
+      if (!job) return s;
+      const next = applyCheckIn(s, job.id);
+      const sent = next.whatsappOutbox[0];
+      if (next !== s && sent && typeof window !== "undefined") {
+        window.open(sent.url, "_blank", "noopener,noreferrer");
+      }
+      return next;
     });
   }, []);
 
@@ -403,27 +450,29 @@ export function StoreProvider({ children }: { children: ReactNode }) {
       let changed = false;
       let inbox = s.inbox;
       let notifications = s.notifications;
+      let whatsappOutbox = s.whatsappOutbox;
       const jobs = s.jobs.map((job) => {
         if (!job.startedAt || job.status === "iptal" || job.status === "teslim") return job;
         const clock = jobClock(job);
         const at = new Date().toISOString();
         if (clock.done) {
           changed = true;
+          const waText = statusWhatsAppText({
+            plate: job.plate,
+            service: job.serviceName,
+            body: "Aracınız hazır, teslime alındı.",
+          });
+          const wa = pushWhatsApp(whatsappOutbox, { phone: job.phone, text: waText, jobId: job.id });
+          whatsappOutbox = wa.outbox;
           inbox = pushInbox(inbox, {
             customerId: job.customerId,
             kind: "is",
             refId: job.id,
             title: `${job.serviceName} — ${job.plate}`,
-            messages: [
-              {
-                at,
-                from: "sistem",
-                text: "WhatsApp: Aracınız hazır, teslime alındı. Tahmini segmentler tamamlandı.",
-              },
-            ],
+            messages: [{ at, from: "sistem", channel: "whatsapp", waUrl: wa.item.url, text: waText }],
           });
           notifications = notify(notifications, {
-            title: "Teslim",
+            title: "WhatsApp · teslim",
             body: `${job.plate} hazır`,
             href: `/yonetici/isler/${job.id}`,
           });
@@ -439,18 +488,19 @@ export function StoreProvider({ children }: { children: ReactNode }) {
         if (clock.index > job.notifiedSegmentIndex && clock.index >= 0) {
           changed = true;
           const seg = job.segments[clock.index];
+          const waText = statusWhatsAppText({
+            plate: job.plate,
+            service: job.serviceName,
+            body: `Yeni adım: ${seg.title} (~${seg.minutes} dk).`,
+          });
+          const wa = pushWhatsApp(whatsappOutbox, { phone: job.phone, text: waText, jobId: job.id });
+          whatsappOutbox = wa.outbox;
           inbox = pushInbox(inbox, {
             customerId: job.customerId,
             kind: "is",
             refId: job.id,
             title: `${job.serviceName} — ${job.plate}`,
-            messages: [
-              {
-                at,
-                from: "sistem",
-                text: `WhatsApp: Yeni adım — ${seg.title} (~${seg.minutes} dk). Takip ekranından izleyin.`,
-              },
-            ],
+            messages: [{ at, from: "sistem", channel: "whatsapp", waUrl: wa.item.url, text: waText }],
           });
           return {
             ...job,
@@ -463,7 +513,7 @@ export function StoreProvider({ children }: { children: ReactNode }) {
         return job;
       });
       if (!changed) return s;
-      return { ...s, jobs, inbox, notifications };
+      return { ...s, jobs, inbox, notifications, whatsappOutbox };
     });
   }, []);
 

@@ -309,6 +309,7 @@ export function buildSeed(): AppState {
         read: false,
       },
     ],
+    whatsappOutbox: [],
     coupons: [
       {
         id: "cp-1",
