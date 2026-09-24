@@ -20,8 +20,18 @@ const campaigns = [
   { id: 3, tag: 'YENİ HİZMET', title: 'PPF Film Kaplama', highlight: 'Ücretsiz Kenar Koruma', desc: 'Paint Protection Film ile boyayı çizik ve taş izlerine karşı tam kalkan.', cta: 'Detayları Gör', code: 'Elit Pakete Özel', image: 'https://images.unsplash.com/photo-1492144534655-ae79c964c9d7?w=1400&h=600&fit=crop&auto=format', accent: '#C9A84C' },
 ];
 
+const serviceEmojis: Record<number, string> = {
+  2: '🛞',
+  3: '🔧',
+  4: '✨',
+  5: '⚙️',
+  6: '🛡️',
+  7: '🚨',
+  8: '🎗️',
+};
+
 const services = [
-  { id: 1, title: 'Premium Oto Yıkama', subtitle: 'PREMIUM · EXCLUSIVE', price: '1.250 ₺', duration: '45 dk', tag: 'En Popüler' },
+  { id: 1, title: 'Premium Oto Yıkama', subtitle: 'PREMIUM · EXCLUSIVE', price: '1.250 ₺', duration: '45 dk', tag: 'En Popüler', icon: '/services/premium-oto-yikama.png' },
   { id: 2, title: 'Lastik Değişimi & Balans', subtitle: '', price: '1.850 ₺', duration: '60 dk', tag: '' },
   { id: 3, title: 'Aksesuar Montajı', subtitle: '', price: '950 ₺', duration: '30 dk', tag: '' },
   { id: 4, title: 'Detaylı İç-Dış Bakım', subtitle: 'FULL DETAILING', price: '2.750 ₺', duration: '90 dk', tag: 'Premium' },
@@ -181,8 +191,13 @@ export default function Home() {
           <div style={{ display: 'flex', flexDirection: 'column', gap: 12 }}>
             {services.map(svc => (
               <div key={svc.id} onMouseEnter={()=>setActiveService(svc.id)} onMouseLeave={()=>setActiveService(null)} style={{ display: 'flex', alignItems: 'center', gap: 18, background: activeService===svc.id?'#181818':'#141414', border: activeService===svc.id?'1px solid rgba(201,168,76,0.45)':'1px solid rgba(201,168,76,0.12)', borderRadius: 14, padding: '18px 20px', cursor: 'pointer', transition: 'all 0.25s ease', boxShadow: activeService===svc.id?'0 8px 32px rgba(201,168,76,0.1)':'none' }}>
-                <div style={{ width: 60, height: 60, flexShrink: 0, borderRadius: 14, background: 'linear-gradient(145deg, rgba(201,168,76,0.14) 0%, rgba(201,168,76,0.06) 100%)', border: '1px solid rgba(201,168,76,0.25)', display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: 28 }}>
-                  {svc.id===1?'🚗':svc.id===2?'🛞':svc.id===3?'🔧':svc.id===4?'✨':svc.id===5?'⚙️':svc.id===6?'🛡️':svc.id===7?'🚨':'🎗️'}
+                <div style={{ width: 60, height: 60, flexShrink: 0, borderRadius: svc.icon ? '50%' : 14, background: svc.icon ? 'transparent' : 'linear-gradient(145deg, rgba(201,168,76,0.14) 0%, rgba(201,168,76,0.06) 100%)', border: svc.icon ? 'none' : '1px solid rgba(201,168,76,0.25)', display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: 28, overflow: 'hidden' }}>
+                  {svc.icon ? (
+                    // eslint-disable-next-line @next/next/no-img-element
+                    <img src={svc.icon} alt="" width={60} height={60} style={{ width: 60, height: 60, objectFit: 'cover' }} />
+                  ) : (
+                    serviceEmojis[svc.id]
+                  )}
                 </div>
                 <div style={{ flex: 1, minWidth: 0 }}>
                   <div style={{ display: 'flex', alignItems: 'center', gap: 8, marginBottom: 4, flexWrap: 'wrap' }}>
