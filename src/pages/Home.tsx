@@ -54,16 +54,16 @@ export default function Home() {
 
   return (
     <div style={{ background: '#080808', minHeight: '100vh', color: '#f0e6c8' }}>
-      <nav style={{ position: 'fixed', top: 0, left: 0, right: 0, zIndex: 100, padding: '0 2.5rem', height: 100, display: 'flex', alignItems: 'center', justifyContent: 'space-between', background: 'rgba(8,8,8,0.94)', backdropFilter: 'blur(16px)', borderBottom: '1px solid rgba(201,168,76,0.18)' }}>
-        <div style={{ display: 'flex', alignItems: 'center', gap: 18, cursor: 'pointer' }} onClick={() => scrollTo('hero')}>
-          <img src={logoSrc} alt="Elit Detailing" style={{ height: 78, objectFit: 'contain', filter: 'drop-shadow(0 0 12px rgba(201,168,76,0.45))' }} />
+      <nav style={{ position: 'fixed', top: 0, left: 0, right: 0, zIndex: 100, padding: '0 2.5rem', height: 76, display: 'flex', alignItems: 'center', justifyContent: 'space-between', background: 'rgba(8,8,8,0.94)', backdropFilter: 'blur(16px)', borderBottom: '1px solid rgba(201,168,76,0.18)' }}>
+        <div style={{ display: 'flex', alignItems: 'center', gap: 14, cursor: 'pointer' }} onClick={() => scrollTo('hero')}>
+          <img src={logoSrc} alt="Elit Detailing" style={{ height: 56, objectFit: 'contain', filter: 'drop-shadow(0 0 12px rgba(201,168,76,0.45))' }} />
           <div>
-            <div className="font-cinzel text-gold" style={{ fontSize: 28, fontWeight: 700, letterSpacing: '0.22em', lineHeight: 1 }}>ELIT</div>
-            <div style={{ fontSize: 17, letterSpacing: '0.32em', color: 'rgba(201,168,76,0.5)', fontFamily: 'Raleway, sans-serif', fontWeight: 600, marginTop: 4 }}>DETAILING</div>
+            <div className="font-cinzel text-gold" style={{ fontSize: 22, fontWeight: 700, letterSpacing: '0.22em', lineHeight: 1 }}>ELIT</div>
+            <div style={{ fontSize: 13, letterSpacing: '0.32em', color: 'rgba(201,168,76,0.5)', fontFamily: 'Raleway, sans-serif', fontWeight: 600, marginTop: 2 }}>DETAILING</div>
           </div>
         </div>
-        <div style={{ display: 'flex', gap: 36 }}>
-          {navLinks.map(l => (<button key={l} onClick={() => scrollTo(l === 'Anasayfa' ? 'hero' : l === 'Hizmetler' ? 'services' : l === 'Hakkımızda' ? 'about' : 'contact')} style={{ background: 'none', border: 'none', color: 'rgba(240,230,200,0.65)', cursor: 'pointer', fontFamily: 'Raleway, sans-serif', fontWeight: 500, fontSize: 13, letterSpacing: '0.08em', transition: 'color 0.25s', padding: '4px 0' }} onMouseEnter={e => (e.currentTarget.style.color = '#C9A84C')} onMouseLeave={e => (e.currentTarget.style.color = 'rgba(240,230,200,0.65)')}>{l}</button>))}
+        <div style={{ display: 'flex', gap: 40 }}>
+          {navLinks.map(l => (<button key={l} onClick={() => scrollTo(l === 'Anasayfa' ? 'hero' : l === 'Hizmetler' ? 'services' : l === 'Hakkımızda' ? 'about' : 'contact')} style={{ background: 'none', border: 'none', color: 'rgba(240,230,200,0.72)', cursor: 'pointer', fontFamily: 'Raleway, sans-serif', fontWeight: 600, fontSize: 16, letterSpacing: '0.08em', transition: 'color 0.25s', padding: '4px 0' }} onMouseEnter={e => (e.currentTarget.style.color = '#C9A84C')} onMouseLeave={e => (e.currentTarget.style.color = 'rgba(240,230,200,0.72)')}>{l}</button>))}
         </div>
         <div style={{ display: 'flex', alignItems: 'center', gap: 12 }}>
           {user ? (
@@ -84,26 +84,26 @@ export default function Home() {
               )}
             </div>
           ) : (
-            <button className="btn-gold" onClick={() => navigate('/login')} style={{ padding: '10px 26px', fontSize: 12, letterSpacing: '0.1em', borderRadius: 2, fontFamily: 'Raleway, sans-serif', fontWeight: 700 }}>Giriş Yap</button>
+            <button className="btn-gold" onClick={() => navigate('/login')} style={{ padding: '8px 22px', fontSize: 13, letterSpacing: '0.1em', borderRadius: 2, fontFamily: 'Raleway, sans-serif', fontWeight: 700 }}>Giriş Yap</button>
           )}
         </div>
       </nav>
 
-      <div style={{ position: 'fixed', top: 100, left: 0, right: 0, zIndex: 99, background: 'linear-gradient(90deg, #0d0a04, #1a1205, #0d0a04)', borderBottom: '1px solid rgba(201,168,76,0.3)', height: 38, overflow: 'hidden', display: 'flex', alignItems: 'center' }}>
+      <div style={{ position: 'fixed', top: 76, left: 0, right: 0, zIndex: 99, background: 'linear-gradient(90deg, #0d0a04, #1a1205, #0d0a04)', borderBottom: '1px solid rgba(201,168,76,0.3)', height: 48, overflow: 'hidden', display: 'flex', alignItems: 'center' }}>
         <div style={{ position: 'absolute', left: 0, top: 0, bottom: 0, width: 80, background: 'linear-gradient(90deg, #0d0a04, transparent)', zIndex: 2, pointerEvents: 'none' }}/>
         <div style={{ position: 'absolute', right: 0, top: 0, bottom: 0, width: 80, background: 'linear-gradient(270deg, #0d0a04, transparent)', zIndex: 2, pointerEvents: 'none' }}/>
         <div className="ticker-track">
           {[...announcements, ...announcements].map((a, i) => (
-            <span key={i} style={{ display: 'inline-flex', alignItems: 'center', gap: 8, marginRight: 64, whiteSpace: 'nowrap' }}>
-              <span style={{ fontSize: 14 }}>{a.emoji}</span>
-              <span style={{ fontSize: 12, fontFamily: 'Barlow, sans-serif', fontWeight: 500, color: 'rgba(240,230,200,0.85)', letterSpacing: '0.04em' }}>{a.text}</span>
-              <span style={{ color: 'rgba(201,168,76,0.4)', fontSize: 10, marginLeft: 16 }}>✦</span>
+            <span key={i} style={{ display: 'inline-flex', alignItems: 'center', gap: 10, marginRight: 72, whiteSpace: 'nowrap' }}>
+              <span style={{ fontSize: 16 }}>{a.emoji}</span>
+              <span style={{ fontSize: 15, fontFamily: 'Barlow, sans-serif', fontWeight: 500, color: 'rgba(240,230,200,0.9)', letterSpacing: '0.04em' }}>{a.text}</span>
+              <span style={{ color: 'rgba(201,168,76,0.4)', fontSize: 12, marginLeft: 16 }}>✦</span>
             </span>
           ))}
         </div>
       </div>
 
-      <div style={{ marginTop: 138, position: 'relative', height: 'clamp(300px, 42vw, 500px)', overflow: 'hidden', background: '#ffffff' }} onMouseEnter={() => setCampaignPaused(true)} onMouseLeave={() => setCampaignPaused(false)}>
+      <div style={{ marginTop: 124, position: 'relative', height: 'clamp(300px, 42vw, 500px)', overflow: 'hidden', background: '#ffffff' }} onMouseEnter={() => setCampaignPaused(true)} onMouseLeave={() => setCampaignPaused(false)}>
         {campaigns.map((c, i) => (
           <div key={c.id} style={{ position: 'absolute', inset: 0, opacity: activeCampaign === i ? 1 : 0, transition: 'opacity 0.9s ease', pointerEvents: activeCampaign === i ? 'auto' : 'none', background: '#ffffff', display: 'flex' }}>
             <div style={{ flex: '0 0 48%', display: 'flex', alignItems: 'center', padding: 'clamp(28px, 5vw, 72px)', background: '#ffffff', position: 'relative', zIndex: 2 }}>
