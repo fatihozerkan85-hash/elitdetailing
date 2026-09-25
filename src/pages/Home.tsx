@@ -323,7 +323,7 @@ export default function Home() {
         .campaign-code { font-size: 11px; font-family: Barlow, sans-serif; color: #8B6914; letter-spacing: 0.08em; font-weight: 700; background: rgba(201,168,76,0.12); padding: 5px 12px; border-radius: 4px; border: 1px solid rgba(201,168,76,0.35); }
         .campaign-media { flex: 0 0 52%; position: relative; overflow: hidden; }
         .campaign-photo { position: absolute; inset: 0; background-size: cover; background-position: center; filter: brightness(0.88) saturate(0.9); transition: transform 6s ease; }
-        .campaign-media-fade { position: absolute; inset: 0; background: linear-gradient(90deg, #fff 0%, rgba(255,255,255,0.15) 35%, transparent 100%); }
+        .campaign-media-fade { position: absolute; inset: 0; pointer-events: none; background: linear-gradient(90deg, #fff 0%, rgba(255,255,255,0.15) 35%, transparent 100%); }
         .campaign-count { position: absolute; bottom: 20px; right: 24px; font-size: 11px; font-family: Barlow Condensed, sans-serif; color: rgba(255,255,255,0.7); letter-spacing: 0.12em; background: rgba(0,0,0,0.35); backdrop-filter: blur(6px); padding: 4px 10px; border-radius: 4px; }
         .campaign-arrow { position: absolute; top: 50%; transform: translateY(-50%); width: 38px; height: 38px; border-radius: 50%; background: rgba(201,168,76,0.15); border: 1.5px solid rgba(201,168,76,0.5); color: #8B6914; font-size: 18px; cursor: pointer; display: flex; align-items: center; justify-content: center; z-index: 10; line-height: 1; }
         .campaign-arrow-left { left: 16px; }
@@ -398,8 +398,18 @@ export default function Home() {
           .campaign-slide { display: none; position: relative; inset: auto; flex-direction: column; opacity: 1; }
           .campaign-slide.is-active { display: flex; }
           .campaign-copy { flex: none; width: 100%; padding: 28px 20px 20px; }
-          .campaign-media { flex: none; width: 100%; height: 210px; }
-          .campaign-media-fade { background: linear-gradient(180deg, #fff 0%, transparent 28%); }
+          .campaign-media { flex: none; width: 100%; height: 220px; }
+          .campaign-photo {
+            filter: brightness(0.72) saturate(0.78) contrast(0.94);
+          }
+          .campaign-media-fade {
+            background:
+              linear-gradient(180deg, #fff 0%, rgba(255,255,255,0.78) 12%, rgba(255,255,255,0.32) 34%, rgba(255,255,255,0.1) 52%, transparent 72%),
+              linear-gradient(180deg, transparent 42%, rgba(8,8,8,0.28) 78%, rgba(8,8,8,0.55) 100%),
+              linear-gradient(90deg, rgba(255,255,255,0.4) 0%, transparent 38%, rgba(8,8,8,0.22) 100%);
+            box-shadow: inset 0 0 80px rgba(8,8,8,0.32);
+            pointer-events: none;
+          }
           .campaign-arrow { width: 32px; height: 32px; }
           .campaign-arrow-left { left: 8px; }
           .campaign-arrow-right { right: 8px; }
