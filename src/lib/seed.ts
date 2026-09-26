@@ -1,5 +1,6 @@
 import { ACCESSORIES, SERVICES } from "./catalog";
 import { minutesAgo, todayISO } from "./format";
+import { cloneAccessories } from "./ops";
 import { segmentsFor } from "./process";
 import { buildDefaultCms } from "./site-cms";
 import type { AppState, Customer, Job, Technician } from "./types";
@@ -72,6 +73,7 @@ export function buildSeed(): AppState {
     session: { role: "guest", name: "Misafir" },
     customers,
     technicians,
+    accessories: cloneAccessories(ACCESSORIES),
     jobs: [
       shopJob({
         id: "IS-1042",
@@ -347,9 +349,10 @@ export function buildSeed(): AppState {
         customerId: "c-demo",
         code: "ELIT20",
         title: "Seramik keşif %20",
-        rule: "Keşif randevusunda geçerli",
+        rule: "Keşif randevusunda geçerli · %20",
         expires: "30 Eylül 2026",
         status: "aktif",
+        discountPercent: 20,
       },
     ],
     campaignNotif: true,

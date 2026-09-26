@@ -103,6 +103,62 @@ export default function SiteHizmetlerPage() {
                 <Label>Açıklama</Label>
                 <Textarea value={s.description} onChange={(e) => updSvc(s.id, { description: e.target.value })} rows={2} />
               </div>
+              <div className="grid gap-2 sm:col-span-2 lg:col-span-4">
+                <div className="flex flex-wrap items-center justify-between gap-2">
+                  <Label>İş adımları (segment)</Label>
+                  <Button
+                    type="button"
+                    size="sm"
+                    variant="outline"
+                    onClick={() =>
+                      updSvc(s.id, {
+                        segments: [...s.segments, { title: "Yeni adım", minutes: 15 }],
+                        durationMin: s.durationMin + 15,
+                      })
+                    }
+                  >
+                    Adım ekle
+                  </Button>
+                </div>
+                <div className="space-y-2">
+                  {s.segments.map((seg, idx) => (
+                    <div key={`${s.id}-seg-${idx}`} className="grid gap-2 sm:grid-cols-[1fr_100px_auto]">
+                      <Input
+                        value={seg.title}
+                        onChange={(e) => {
+                          const segments = s.segments.map((x, i) =>
+                            i === idx ? { ...x, title: e.target.value } : x,
+                          );
+                          updSvc(s.id, { segments });
+                        }}
+                      />
+                      <Input
+                        type="number"
+                        value={seg.minutes}
+                        onChange={(e) => {
+                          const minutes = Number(e.target.value) || 0;
+                          const segments = s.segments.map((x, i) => (i === idx ? { ...x, minutes } : x));
+                          const durationMin = segments.reduce((n, x) => n + x.minutes, 0);
+                          updSvc(s.id, { segments, durationMin });
+                        }}
+                      />
+                      <Button
+                        type="button"
+                        size="sm"
+                        variant="destructive"
+                        disabled={s.segments.length <= 1}
+                        onClick={() => {
+                          const segments = s.segments.filter((_, i) => i !== idx);
+                          const durationMin = segments.reduce((n, x) => n + x.minutes, 0);
+                          updSvc(s.id, { segments, durationMin });
+                        }}
+                      >
+                        Sil
+                      </Button>
+                    </div>
+                  ))}
+                </div>
+              </div>
             </div>
           </div>
         ))}

@@ -1,6 +1,6 @@
 import { occupancyMin } from "./process";
 import { SERVICES } from "./catalog";
-import type { Appointment } from "./types";
+import type { Appointment, Service } from "./types";
 
 export const SLOT_TIMES = [
   "08:30",
@@ -38,8 +38,13 @@ export function minToTime(n: number) {
   return `${String(h).padStart(2, "0")}:${String(m).padStart(2, "0")}`;
 }
 
-export function appointmentSpan(a: Appointment) {
-  const svc = SERVICES.find((s) => s.id === a.serviceId);
+function resolveService(serviceId: string, catalog?: Service[]) {
+  const list = catalog?.length ? catalog : SERVICES;
+  return list.find((s) => s.id === serviceId) || SERVICES.find((s) => s.id === serviceId);
+}
+
+export function appointmentSpan(a: Appointment, catalog?: Service[]) {
+  const svc = resolveService(a.serviceId, catalog);
   const mins = svc ? occupancyMin(svc) : 40;
   const start = timeToMin(a.time);
   return { start, end: start + mins };
@@ -51,8 +56,9 @@ export function slotConflicts(
   serviceId: string,
   appointments: Appointment[],
   ignoreId?: string,
+  catalog?: Service[],
 ) {
-  const svc = SERVICES.find((s) => s.id === serviceId);
+  const svc = resolveService(serviceId, catalog);
   if (!svc) return false;
   const start = timeToMin(time);
   const end = start + occupancyMin(svc);
@@ -60,7 +66,7 @@ export function slotConflicts(
     if (a.date !== date || a.status === "iptal" || a.id === ignoreId) return false;
     // Ödenmemiş / başarısız kayıt slot kilitlemez
     if (a.paymentStatus === "basarisiz") return false;
-    const span = appointmentSpan(a);
+    const span = appointmentSpan(a, catalog);
     return start < span.end && end > span.start;
   });
 }

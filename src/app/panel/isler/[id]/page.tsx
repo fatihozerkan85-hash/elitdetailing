@@ -10,21 +10,34 @@ import { EmptyState } from "@/components/site-header";
 import { JobPipeline, StatusBadge } from "@/components/status-badge";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
+import { Label } from "@/components/ui/label";
+import { Textarea } from "@/components/ui/textarea";
 import { JOB_FLOW, JOB_STATUS_LABEL, PAYMENT_STATUS_LABEL, ROADSIDE_STATUS_LABEL } from "@/lib/catalog";
 import { formatDateTime, tryFormat } from "@/lib/format";
 import { jobClock } from "@/lib/process";
 import { useStore } from "@/lib/store";
-import { waMeUrl } from "@/lib/whatsapp";
 import type { JobStatus, RoadsideStatus } from "@/lib/types";
 
 const RS_FLOW: RoadsideStatus[] = ["alindi", "yonlendirildi", "yolda", "yerinde", "tamamlandi"];
 
 export default function IsDetayPage() {
   const { id } = useParams<{ id: string }>();
-  const { jobs, roadside, technicians, customers, updateJobStatus, updateRoadsideStatus, checkInJob } = useStore();
+  const {
+    jobs,
+    roadside,
+    technicians,
+    customers,
+    updateJobStatus,
+    updateRoadsideStatus,
+    checkInJob,
+    assignTechnician,
+    updateJobEstimate,
+    enqueueWhatsApp,
+  } = useStore();
   const job = jobs.find((j) => j.id === id);
   const call = roadside.find((r) => r.id === id);
   const [payAmount, setPayAmount] = useState(job?.estimate || call?.amount || 650);
+  const [notes, setNotes] = useState(job?.notes || "");
 
   if (!job && !call) {
     return (
@@ -34,7 +47,8 @@ export default function IsDetayPage() {
     );
   }
 
-  const tech = technicians.find((t) => t.id === (job?.technicianId ?? call?.technicianId));
+  const techId = job?.technicianId ?? call?.technicianId ?? "";
+  const tech = technicians.find((t) => t.id === techId);
   const customer = customers.find((c) => c.id === (job?.customerId ?? call?.customerId));
   const phone = job?.phone ?? call!.phone;
   const paymentStatus = job?.paymentStatus ?? call!.paymentStatus;
@@ -44,13 +58,8 @@ export default function IsDetayPage() {
     const ref = call?.id ?? job?.appointmentId ?? job!.id;
     const url = `${window.location.origin}/odeme/link?kind=${kind}&refId=${encodeURIComponent(ref)}&amount=${payAmount}`;
     const text = `Elit Detailing ödeme linki (${tryFormat(payAmount)}): ${url}`;
-    window.open(waMeUrl(phone, text), "_blank", "noopener,noreferrer");
-    void fetch("/api/whatsapp", {
-      method: "POST",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ phone, text }),
-    });
-    toast.success("Ödeme linki hazır", { description: "WhatsApp açıldı / kuyruğa yazıldı" });
+    enqueueWhatsApp({ phone, text, jobId: id, open: true });
+    toast.success("Ödeme linki WhatsApp kuyruğuna yazıldı");
   }
 
   return (
@@ -89,8 +98,78 @@ export default function IsDetayPage() {
           <dd>{PAYMENT_STATUS_LABEL[paymentStatus] ?? paymentStatus}</dd>
         </div>
       </dl>
-      {tech ? <p className="mt-2 text-xs text-zinc-600">Personel: {tech.name}</p> : null}
-      {customer ? <p className="mt-1 text-xs text-zinc-600">Kayıtlı müşteri: {customer.name}</p> : null}
+
+      <div className="mt-4 flex flex-wrap items-end gap-3">
+        <div className="grid gap-1">
+          <Label className="text-xs text-zinc-500">Personel</Label>
+          <select
+            className="h-9 rounded-lg border border-input bg-input/30 px-2 text-sm"
+            value={techId}
+            onChange={(e) => {
+              assignTechnician(id, e.target.value);
+              toast.success("Personel atandı");
+            }}
+          >
+            <option value="" style={{ color: "#111", backgroundColor: "#fff" }}>
+              Seçilmedi
+            </option>
+            {technicians.map((t) => (
+              <option key={t.id} value={t.id} style={{ color: "#111", backgroundColor: "#fff" }}>
+                {t.name} · {t.role}
+              </option>
+            ))}
+          </select>
+        </div>
+        {tech ? <p className="text-xs text-zinc-600">Aktif: {tech.name}</p> : null}
+        {customer ? <p className="text-xs text-zinc-600">Kayıtlı müşteri: {customer.name}</p> : null}
+      </div>
+
+      {job ? (
+        <div className="mt-4 grid max-w-xl gap-2 rounded-xl border border-white/10 p-4">
+          <Label className="text-xs text-zinc-500">Tahmini tutar / not</Label>
+          <div className="flex flex-wrap gap-2">
+            <Input
+              type="number"
+              className="w-36"
+              value={payAmount}
+              onChange={(e) => setPayAmount(Number(e.target.value))}
+            />
+            <Button
+              size="sm"
+              variant="outline"
+              onClick={() => {
+                updateJobEstimate(job.id, payAmount, notes);
+                toast.success("Tahmin kaydedildi");
+              }}
+            >
+              Kaydet
+            </Button>
+          </div>
+          <Textarea value={notes} onChange={(e) => setNotes(e.target.value)} rows={2} />
+        </div>
+      ) : (
+        <div className="mt-4 flex flex-wrap items-end gap-2">
+          <div>
+            <Label className="text-xs text-zinc-500">Teklif tutarı ₺</Label>
+            <Input
+              type="number"
+              className="mt-1 w-36"
+              value={payAmount}
+              onChange={(e) => setPayAmount(Number(e.target.value))}
+            />
+          </div>
+          <Button
+            size="sm"
+            variant="outline"
+            onClick={() => {
+              updateJobEstimate(call!.id, payAmount);
+              toast.success("Tutar kaydedildi");
+            }}
+          >
+            Tutarı kaydet
+          </Button>
+        </div>
+      )}
 
       {paymentStatus !== "odendi" ? (
         <div className="mt-6 flex flex-wrap items-end gap-2 rounded-xl border border-amber-500/25 bg-zinc-900/40 p-4">
@@ -104,7 +183,9 @@ export default function IsDetayPage() {
             />
           </div>
           <Button onClick={sendPayLink}>WhatsApp ile ödeme linki gönder</Button>
-          <p className="w-full text-xs text-zinc-500">Yol yardımda ödeme çıkışı engellemez. Keşif/teklif sonrası link gönderin.</p>
+          <p className="w-full text-xs text-zinc-500">
+            Yol yardımda ödeme çıkışı engellemez. Keşif/teklif sonrası link gönderin. (iyzico mock)
+          </p>
         </div>
       ) : null}
 
@@ -126,7 +207,7 @@ export default function IsDetayPage() {
               Müşteri girişini onayla
             </Button>
           ) : null}
-          <p className="mt-4 text-xs tracking-widest text-zinc-500 uppercase">Durum ilerlet</p>
+          <p className="mt-4 text-xs tracking-widest text-zinc-500 uppercase">Durum ilerlet (WhatsApp gider)</p>
           <div className="mt-2 flex flex-wrap gap-2">
             {JOB_FLOW.map((s) => (
               <Button
@@ -170,6 +251,9 @@ export default function IsDetayPage() {
                 {ROADSIDE_STATUS_LABEL[s]}
               </Button>
             ))}
+            <Button size="sm" variant="destructive" onClick={() => updateRoadsideStatus(call!.id, "iptal", "İptal")}>
+              İptal
+            </Button>
           </div>
           <ol className="mt-8 space-y-3 border-l border-white/10 pl-4 text-sm">
             {call!.timeline.map((e, i) => (

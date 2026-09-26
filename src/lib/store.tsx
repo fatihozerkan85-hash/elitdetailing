@@ -9,18 +9,21 @@ import {
   useState,
   type ReactNode,
 } from "react";
-import { ACCESSORIES, DEMO, JOB_STATUS_LABEL, ROADSIDE_STATUS_LABEL, SERVICES } from "./catalog";
+import { ACCESSORIES, DEMO, JOB_STATUS_LABEL, ORDER_STATUS_LABEL, ROADSIDE_STATUS_LABEL, SERVICES } from "./catalog";
 import { uid } from "./format";
+import { cloneAccessories, couponOffAmount, inferDiscountPercent, upsertCustomer } from "./ops";
 import { jobClock, hydrateJob, segmentsFor } from "./process";
 import { buildSeed } from "./seed";
 import { buildDefaultCms, type SiteCms } from "./site-cms";
 import { statusWhatsAppText, waMeUrl } from "./whatsapp";
 import type {
+  Accessory,
   AccessoryOrder,
   Appointment,
   AppState,
   CartLine,
   Coupon,
+  Customer,
   InboxItem,
   Job,
   JobStatus,
@@ -29,6 +32,7 @@ import type {
   RoadsideCall,
   RoadsideStatus,
   Session,
+  Technician,
 } from "./types";
 
 const KEY = "elit-detailing-v4";
@@ -117,8 +121,33 @@ type Store = AppState & {
   setNotifPrefs: (p: { campaignNotif?: boolean; couponNotif?: boolean }) => void;
   setCms: (cms: SiteCms) => void;
   patchCms: (patch: Partial<SiteCms>) => void;
-  createOwnerCoupon: (input: { code: string; title: string; rule: string; expires: string; customerId?: string }) => Coupon;
+  createOwnerCoupon: (input: {
+    code: string;
+    title: string;
+    rule: string;
+    expires: string;
+    customerId?: string;
+    discountPercent?: number;
+    discountAmount?: number;
+  }) => Coupon;
   deleteCoupon: (id: string) => void;
+  updateCouponStatus: (id: string, status: Coupon["status"]) => void;
+  redeemCoupon: (code: string, baseAmount: number, customerId?: string) => {
+    coupon: Coupon;
+    discount: number;
+    amount: number;
+  } | null;
+  markCouponUsed: (id: string) => void;
+  saveCustomer: (input: Partial<Customer> & { name: string; phone: string }) => Customer;
+  deleteCustomer: (id: string) => void;
+  saveTechnician: (input: Partial<Technician> & { name: string; role: string }) => Technician;
+  deleteTechnician: (id: string) => void;
+  assignTechnician: (refId: string, technicianId: string) => void;
+  saveAccessory: (input: Partial<Accessory> & { name: string; price: number }) => Accessory;
+  deleteAccessory: (id: string) => void;
+  setAccessoryStock: (id: string, stock: number) => void;
+  updateJobEstimate: (id: string, estimate: number, notes?: string) => void;
+  enqueueWhatsApp: (input: { phone: string; text: string; jobId?: string; open?: boolean }) => string;
 };
 
 const Ctx = createContext<Store | null>(null);
@@ -140,9 +169,15 @@ function pushInbox(
   return [row, ...inbox];
 }
 
-function notify(list: Notification[], n: Omit<Notification, "id" | "at" | "read">): Notification[] {
+function notify(
+  list: Notification[],
+  n: Omit<Notification, "id" | "at" | "read"> & { audience?: Notification["audience"] },
+): Notification[] {
+  const audience =
+    n.audience ??
+    (n.href.startsWith("/yonetici") || n.href.startsWith("/panel") ? "owner" : "customer");
   return [
-    { id: uid("NT"), at: new Date().toISOString(), read: false, ...n },
+    { id: uid("NT"), at: new Date().toISOString(), read: false, ...n, audience },
     ...list,
   ];
 }
@@ -207,9 +242,15 @@ export function StoreProvider({ children }: { children: ReactNode }) {
               })),
               payments: parsed.payments ?? seed.payments ?? [],
               cart: parsed.cart ?? [],
+              accessories: parsed.accessories?.length
+                ? parsed.accessories
+                : cloneAccessories(ACCESSORIES),
               cms: { ...buildDefaultCms(), ...(parsed.cms ?? {}), banners: parsed.cms?.banners ?? seed.cms.banners, ticker: parsed.cms?.ticker ?? seed.cms.ticker, homeServices: parsed.cms?.homeServices ?? seed.cms.homeServices, campaigns: parsed.cms?.campaigns ?? seed.cms.campaigns, services: parsed.cms?.services ?? seed.cms.services, texts: parsed.cms?.texts ?? seed.cms.texts, forms: parsed.cms?.forms ?? seed.cms.forms },
               whatsappOutbox: parsed.whatsappOutbox ?? [],
-              coupons: parsed.coupons ?? seed.coupons,
+              coupons: (parsed.coupons ?? seed.coupons).map((c) => ({
+                ...c,
+                discountPercent: c.discountPercent ?? inferDiscountPercent(c.code, c.rule),
+              })),
               campaignNotif: parsed.campaignNotif ?? true,
               couponNotif: parsed.couponNotif ?? true,
               session: current.session.role !== "guest" ? current.session : (parsed.session ?? seed.session),
@@ -274,13 +315,19 @@ export function StoreProvider({ children }: { children: ReactNode }) {
         s.cms.services.find((x) => x.id === input.serviceId && x.active) ||
         SERVICES.find((x) => x.id === input.serviceId);
       if (!service) return s;
+      const { customers, customer } = upsertCustomer(s.customers, {
+        name: input.name,
+        phone: input.phone,
+        plate: input.plate,
+        vehicle: input.vehicle,
+      });
       const discovery = input.discovery ?? ("discovery" in service ? Boolean(service.discovery) : service.id === "boya-koruma");
       const amount = input.amount ?? (discovery ? 0 : service.fromPrice);
       const paymentStatus = input.paymentStatus ?? (discovery ? "kesif" : "odendi");
       const status = input.status ?? (paymentStatus === "odendi" ? "onaylandi" : "bekliyor");
       const appt: Appointment = {
         id: uid("RDV"),
-        customerId: "c-demo",
+        customerId: customer.id,
         customerName: input.name,
         phone: input.phone,
         plate: input.plate.toUpperCase(),
@@ -300,7 +347,7 @@ export function StoreProvider({ children }: { children: ReactNode }) {
       const job: Job = {
         id: uid("IS"),
         kind: service.category === "lastik" ? "lastik" : service.category === "detailing" ? "detailing" : "yikama",
-        customerId: "c-demo",
+        customerId: customer.id,
         customerName: input.name,
         phone: input.phone,
         plate: input.plate.toUpperCase(),
@@ -331,10 +378,11 @@ export function StoreProvider({ children }: { children: ReactNode }) {
       };
       return {
         ...s,
+        customers,
         appointments: [appt, ...s.appointments],
         jobs: [job, ...s.jobs],
         inbox: pushInbox(s.inbox, {
-          customerId: s.session.customerId ?? "c-demo",
+          customerId: customer.id,
           kind: "randevu",
           refId: appt.id,
           title: `${service.name} randevusu — ${appt.plate}`,
@@ -352,6 +400,7 @@ export function StoreProvider({ children }: { children: ReactNode }) {
           title: discovery ? "Keşif randevusu" : "Ödemeli randevu",
           body: `${appt.id} · ${input.name} · ${service.name}`,
           href: `/yonetici/isler/${job.id}`,
+          audience: "owner",
         }),
       };
     });
@@ -359,114 +408,148 @@ export function StoreProvider({ children }: { children: ReactNode }) {
   }, []);
 
   const createRoadside = useCallback<Store["createRoadside"]>((input) => {
-    const call: RoadsideCall = {
-      id: uid("YY"),
-      customerId: "c-demo",
-      customerName: input.name,
-      phone: input.phone,
-      plate: input.plate.toUpperCase(),
-      vehicle: input.vehicle,
-      location: input.location,
-      lat: input.lat,
-      lng: input.lng,
-      accuracyM: input.accuracyM,
-      issue: input.issue,
-      urgency: input.urgency,
-      status: "alindi",
-      paymentStatus: "bekliyor",
-      amount: 0,
-      createdAt: new Date().toISOString(),
-      updatedAt: new Date().toISOString(),
-      timeline: [
-        {
-          at: new Date().toISOString(),
-          status: "alindi",
-          note: input.lat != null && input.lng != null
-            ? `Otomatik kayıt — GPS pin alındı. Ödeme ekibi yola çıktıktan / iş bitince iyzico linki ile.`
-            : "Otomatik kayıt — ekip ataması bekleniyor. Ödeme çıkışı engellemez.",
-        },
-      ],
-    };
-    setState((s) => ({
-      ...s,
-      roadside: [call, ...s.roadside],
-      inbox: pushInbox(s.inbox, {
-        customerId: s.session.customerId ?? "c-demo",
-        kind: "yol-yardim",
-        refId: call.id,
-        title: `Yol yardım — ${call.plate}`,
-        messages: [
+    let created!: RoadsideCall;
+    setState((s) => {
+      const { customers, customer } = upsertCustomer(s.customers, {
+        name: input.name,
+        phone: input.phone,
+        plate: input.plate,
+        vehicle: input.vehicle,
+      });
+      const call: RoadsideCall = {
+        id: uid("YY"),
+        customerId: customer.id,
+        customerName: input.name,
+        phone: input.phone,
+        plate: input.plate.toUpperCase(),
+        vehicle: input.vehicle,
+        location: input.location,
+        lat: input.lat,
+        lng: input.lng,
+        accuracyM: input.accuracyM,
+        issue: input.issue,
+        urgency: input.urgency,
+        status: "alindi",
+        paymentStatus: "bekliyor",
+        amount: 0,
+        createdAt: new Date().toISOString(),
+        updatedAt: new Date().toISOString(),
+        timeline: [
           {
             at: new Date().toISOString(),
-            from: "sistem",
-            text: `${call.id} alındı (${input.urgency}). ${input.lat != null && input.lng != null ? "GPS konumu eklendi. " : ""}Ekip yönlendirilir; ödeme iyzico linki ile sonradan alınır.`,
+            status: "alindi",
+            note:
+              input.lat != null && input.lng != null
+                ? `Otomatik kayıt — GPS pin alındı. Ödeme ekibi yola çıktıktan / iş bitince iyzico linki ile.`
+                : "Otomatik kayıt — ekip ataması bekleniyor. Ödeme çıkışı engellemez.",
           },
         ],
-      }),
-      notifications: notify(s.notifications, {
-        title: "Yeni yol yardım",
-        body: `${call.id} · ${input.urgency} · ${input.plate}`,
-        href: `/yonetici/isler/${call.id}`,
-      }),
-    }));
-    return call;
+      };
+      created = call;
+      return {
+        ...s,
+        customers,
+        roadside: [call, ...s.roadside],
+        inbox: pushInbox(s.inbox, {
+          customerId: customer.id,
+          kind: "yol-yardim",
+          refId: call.id,
+          title: `Yol yardım — ${call.plate}`,
+          messages: [
+            {
+              at: new Date().toISOString(),
+              from: "sistem",
+              text: `${call.id} alındı (${input.urgency}). ${input.lat != null && input.lng != null ? "GPS konumu eklendi. " : ""}Ekip yönlendirilir; ödeme iyzico linki ile sonradan alınır.`,
+            },
+          ],
+        }),
+        notifications: notify(s.notifications, {
+          title: "Yeni yol yardım",
+          body: `${call.id} · ${input.urgency} · ${input.plate}`,
+          href: `/yonetici/isler/${call.id}`,
+          audience: "owner",
+        }),
+      };
+    });
+    return created;
   }, []);
 
   const createAccessoryOrder = useCallback<Store["createAccessoryOrder"]>((input) => {
-    const lines = input.lines?.length
-      ? input.lines
-      : [{ accessoryId: input.accessoryId, qty: input.qty }];
-    const resolved = lines
-      .map((l) => {
-        const acc = ACCESSORIES.find((a) => a.id === l.accessoryId);
-        return acc ? { acc, qty: l.qty } : null;
-      })
-      .filter(Boolean) as { acc: (typeof ACCESSORIES)[number]; qty: number }[];
-    if (!resolved.length) return null;
-    const primary = resolved[0]!;
-    const total = resolved.reduce((s, r) => s + r.acc.price * r.qty, 0);
-    const order: AccessoryOrder = {
-      id: uid("AKS"),
-      customerId: "c-demo",
-      customerName: input.name,
-      phone: input.phone,
-      accessoryId: primary.acc.id,
-      accessoryName:
-        resolved.length === 1
-          ? primary.acc.name
-          : resolved.map((r) => `${r.acc.name}×${r.qty}`).join(", "),
-      qty: resolved.reduce((s, r) => s + r.qty, 0),
-      total,
-      notes: input.notes,
-      status: "hazirlaniyor",
-      paymentStatus: input.paymentStatus ?? "odendi",
-      paymentId: input.paymentId,
-      createdAt: new Date().toISOString(),
-    };
-    setState((s) => ({
-      ...s,
-      accessoryOrders: [order, ...s.accessoryOrders],
-      cart: [],
-      inbox: pushInbox(s.inbox, {
-        customerId: s.session.customerId ?? "c-demo",
-        kind: "aksesuar",
-        refId: order.id,
-        title: `Aksesuar siparişi — ${order.accessoryName}`,
-        messages: [
-          {
-            at: new Date().toISOString(),
-            from: "sistem",
-            text: `Sipariş ${order.id} iyzico ile ödendi (${total} ₺). Hazırlanınca Taleplerim güncellenir.`,
-          },
-        ],
-      }),
-      notifications: notify(s.notifications, {
-        title: "Ödemeli aksesuar",
-        body: `${order.id} · ${total} ₺`,
-        href: "/yonetici/gelir",
-      }),
-    }));
-    return order;
+    let created: AccessoryOrder | null = null;
+    setState((s) => {
+      const lines = input.lines?.length
+        ? input.lines
+        : [{ accessoryId: input.accessoryId, qty: input.qty }];
+      const catalog = s.accessories.length ? s.accessories : cloneAccessories(ACCESSORIES);
+      const resolved = lines
+        .map((l) => {
+          const acc = catalog.find((a) => a.id === l.accessoryId);
+          return acc ? { acc, qty: l.qty } : null;
+        })
+        .filter(Boolean) as { acc: Accessory; qty: number }[];
+      if (!resolved.length) return s;
+      for (const r of resolved) {
+        if (r.qty > r.acc.stock) return s;
+      }
+      const { customers, customer } = upsertCustomer(s.customers, {
+        name: input.name,
+        phone: input.phone,
+        plate: "",
+        vehicle: "",
+      });
+      const primary = resolved[0]!;
+      const total = resolved.reduce((sum, r) => sum + r.acc.price * r.qty, 0);
+      const order: AccessoryOrder = {
+        id: uid("AKS"),
+        customerId: customer.id,
+        customerName: input.name,
+        phone: input.phone,
+        accessoryId: primary.acc.id,
+        accessoryName:
+          resolved.length === 1
+            ? primary.acc.name
+            : resolved.map((r) => `${r.acc.name}×${r.qty}`).join(", "),
+        qty: resolved.reduce((sum, r) => sum + r.qty, 0),
+        total,
+        notes: input.notes,
+        status: "hazirlaniyor",
+        paymentStatus: input.paymentStatus ?? "odendi",
+        paymentId: input.paymentId,
+        createdAt: new Date().toISOString(),
+      };
+      created = order;
+      const accessories = catalog.map((a) => {
+        const hit = resolved.find((r) => r.acc.id === a.id);
+        return hit ? { ...a, stock: Math.max(0, a.stock - hit.qty) } : a;
+      });
+      return {
+        ...s,
+        customers,
+        accessories,
+        accessoryOrders: [order, ...s.accessoryOrders],
+        cart: [],
+        inbox: pushInbox(s.inbox, {
+          customerId: customer.id,
+          kind: "aksesuar",
+          refId: order.id,
+          title: `Aksesuar siparişi — ${order.accessoryName}`,
+          messages: [
+            {
+              at: new Date().toISOString(),
+              from: "sistem",
+              text: `Sipariş ${order.id} iyzico ile ödendi (${total} ₺). Hazırlanınca Taleplerim güncellenir.`,
+            },
+          ],
+        }),
+        notifications: notify(s.notifications, {
+          title: "Ödemeli aksesuar",
+          body: `${order.id} · ${total} ₺`,
+          href: "/yonetici/gelir",
+          audience: "owner",
+        }),
+      };
+    });
+    return created;
   }, []);
 
   const addToCart = useCallback<Store["addToCart"]>((accessoryId, qty = 1) => {
@@ -565,6 +648,24 @@ export function StoreProvider({ children }: { children: ReactNode }) {
 
   const fulfillPaidCheckout = useCallback<Store["fulfillPaidCheckout"]>((input) => {
     const p = input.payload;
+    if (p.couponId || p.couponCode) {
+      setState((s) => ({
+        ...s,
+        coupons: s.coupons.map((c) => {
+          if (p.couponId && c.id === String(p.couponId) && c.status === "aktif") {
+            return { ...c, status: "kullanildi" as const };
+          }
+          if (
+            p.couponCode &&
+            c.code.toUpperCase() === String(p.couponCode).toUpperCase() &&
+            c.status === "aktif"
+          ) {
+            return { ...c, status: "kullanildi" as const };
+          }
+          return c;
+        }),
+      }));
+    }
     if (input.kind === "aksesuar") {
       const lines = (p.lines as { accessoryId: string; qty: number }[]) || [];
       const order = createAccessoryOrder({
@@ -808,6 +909,13 @@ export function StoreProvider({ children }: { children: ReactNode }) {
       const job = s.jobs.find((j) => j.id === id);
       if (!job) return s;
       const at = new Date().toISOString();
+      const body = `Durum: ${JOB_STATUS_LABEL[status]}.${note ? ` ${note}` : ""}`;
+      const waText = statusWhatsAppText({
+        plate: job.plate,
+        service: job.serviceName,
+        body,
+      });
+      const wa = pushWhatsApp(s.whatsappOutbox, { phone: job.phone, text: waText, jobId: job.id });
       const nextJobs = s.jobs.map((j) =>
         j.id === id
           ? {
@@ -821,6 +929,7 @@ export function StoreProvider({ children }: { children: ReactNode }) {
       return {
         ...s,
         jobs: nextJobs,
+        whatsappOutbox: wa.outbox,
         inbox: pushInbox(s.inbox, {
           customerId: job.customerId,
           kind: "is",
@@ -830,9 +939,17 @@ export function StoreProvider({ children }: { children: ReactNode }) {
             {
               at,
               from: "sistem",
-              text: `Durum güncellendi: ${JOB_STATUS_LABEL[status]}. ${note ?? "Temsilci aramanıza gerek yok."}`,
+              channel: "whatsapp",
+              waUrl: wa.item.url,
+              text: waText,
             },
           ],
+        }),
+        notifications: notify(s.notifications, {
+          title: "WhatsApp · durum",
+          body: `${job.plate} · ${JOB_STATUS_LABEL[status]}`,
+          href: `/yonetici/isler/${job.id}`,
+          audience: "owner",
         }),
       };
     });
@@ -843,6 +960,13 @@ export function StoreProvider({ children }: { children: ReactNode }) {
       const call = s.roadside.find((r) => r.id === id);
       if (!call) return s;
       const at = new Date().toISOString();
+      const body = `${ROADSIDE_STATUS_LABEL[status]}.${note ? ` ${note}` : ""}`;
+      const waText = statusWhatsAppText({
+        plate: call.plate,
+        service: "Yol yardım",
+        body,
+      });
+      const wa = pushWhatsApp(s.whatsappOutbox, { phone: call.phone, text: waText, jobId: call.id });
       return {
         ...s,
         roadside: s.roadside.map((r) =>
@@ -856,6 +980,7 @@ export function StoreProvider({ children }: { children: ReactNode }) {
               }
             : r,
         ),
+        whatsappOutbox: wa.outbox,
         inbox: pushInbox(s.inbox, {
           customerId: call.customerId,
           kind: "yol-yardim",
@@ -865,9 +990,17 @@ export function StoreProvider({ children }: { children: ReactNode }) {
             {
               at,
               from: "sistem",
-              text: `${ROADSIDE_STATUS_LABEL[status]}. ${note ?? ""}`.trim(),
+              channel: "whatsapp",
+              waUrl: wa.item.url,
+              text: waText,
             },
           ],
+        }),
+        notifications: notify(s.notifications, {
+          title: "WhatsApp · yol yardım",
+          body: `${call.plate} · ${ROADSIDE_STATUS_LABEL[status]}`,
+          href: `/yonetici/isler/${call.id}`,
+          audience: "owner",
         }),
       };
     });
@@ -877,9 +1010,35 @@ export function StoreProvider({ children }: { children: ReactNode }) {
     setState((s) => {
       const appt = s.appointments.find((a) => a.id === id);
       if (!appt) return s;
+      const at = new Date().toISOString();
+      const text =
+        status === "onaylandi"
+          ? `${appt.date} ${appt.time} randevunuz onaylandı. Plaka: ${appt.plate}. Süreç yine de giriş onayından sonra başlar.`
+          : status === "iptal"
+            ? `Randevunuz iptal edildi (${appt.date} ${appt.time}).`
+            : `Randevu durumu: ${status}.`;
+      const wa = pushWhatsApp(s.whatsappOutbox, {
+        phone: appt.phone,
+        text: statusWhatsAppText({ plate: appt.plate, service: appt.serviceName, body: text }),
+      });
+      let jobs = s.jobs;
+      if (status === "iptal") {
+        jobs = s.jobs.map((j) =>
+          j.appointmentId === id && j.status !== "teslim"
+            ? {
+                ...j,
+                status: "iptal" as const,
+                updatedAt: at,
+                timeline: [...j.timeline, { at, status: "iptal", note: "Randevu iptal edildi." }],
+              }
+            : j,
+        );
+      }
       return {
         ...s,
         appointments: s.appointments.map((a) => (a.id === id ? { ...a, status } : a)),
+        jobs,
+        whatsappOutbox: wa.outbox,
         inbox: pushInbox(s.inbox, {
           customerId: appt.customerId,
           kind: "randevu",
@@ -887,12 +1046,11 @@ export function StoreProvider({ children }: { children: ReactNode }) {
           title: `Randevu ${appt.id}`,
           messages: [
             {
-              at: new Date().toISOString(),
+              at,
               from: "sistem",
-              text:
-                status === "onaylandi"
-                  ? `${appt.date} ${appt.time} randevunuz onaylandı. Plaka: ${appt.plate}. Süreç yine de giriş onayından sonra başlar.`
-                  : `Randevu durumu: ${status}.`,
+              channel: "whatsapp",
+              waUrl: wa.item.url,
+              text: wa.item.text,
             },
           ],
         }),
@@ -901,10 +1059,36 @@ export function StoreProvider({ children }: { children: ReactNode }) {
   }, []);
 
   const updateOrderStatus = useCallback((id: string, status: AccessoryOrder["status"]) => {
-    setState((s) => ({
-      ...s,
-      accessoryOrders: s.accessoryOrders.map((o) => (o.id === id ? { ...o, status } : o)),
-    }));
+    setState((s) => {
+      const order = s.accessoryOrders.find((o) => o.id === id);
+      if (!order) return s;
+      const at = new Date().toISOString();
+      const text = `Sipariş ${order.id}: ${ORDER_STATUS_LABEL[status] ?? status}.`;
+      const wa = pushWhatsApp(s.whatsappOutbox, {
+        phone: order.phone,
+        text: statusWhatsAppText({ plate: "AKS", service: order.accessoryName, body: text }),
+        jobId: order.id,
+      });
+      let accessories = s.accessories;
+      if (status === "iptal" && order.status !== "iptal") {
+        accessories = s.accessories.map((a) =>
+          a.id === order.accessoryId ? { ...a, stock: a.stock + order.qty } : a,
+        );
+      }
+      return {
+        ...s,
+        accessories,
+        accessoryOrders: s.accessoryOrders.map((o) => (o.id === id ? { ...o, status } : o)),
+        whatsappOutbox: wa.outbox,
+        inbox: pushInbox(s.inbox, {
+          customerId: order.customerId,
+          kind: "aksesuar",
+          refId: order.id,
+          title: `Aksesuar — ${order.accessoryName}`,
+          messages: [{ at, from: "sistem", channel: "whatsapp", waUrl: wa.item.url, text: wa.item.text }],
+        }),
+      };
+    });
   }, []);
 
   const markInboxRead = useCallback((id: string) => {
@@ -932,6 +1116,7 @@ export function StoreProvider({ children }: { children: ReactNode }) {
         return s;
       }
       ok = true;
+      const discountPercent = inferDiscountPercent(camp.couponCode, camp.blurb) ?? 10;
       return {
         ...s,
         coupons: [
@@ -943,6 +1128,7 @@ export function StoreProvider({ children }: { children: ReactNode }) {
             rule: camp.blurb,
             expires: camp.ends || "2026-12-31",
             status: "aktif" as const,
+            discountPercent,
           },
           ...s.coupons,
         ],
@@ -950,6 +1136,7 @@ export function StoreProvider({ children }: { children: ReactNode }) {
           title: "Kupon tanımlandı",
           body: `${camp.couponCode} cüzdanınıza eklendi.`,
           href: "/kuponlar",
+          audience: "customer",
         }),
       };
     });
@@ -973,6 +1160,8 @@ export function StoreProvider({ children }: { children: ReactNode }) {
   }, []);
 
   const createOwnerCoupon = useCallback<Store["createOwnerCoupon"]>((input) => {
+    const discountPercent =
+      input.discountPercent ?? inferDiscountPercent(input.code, input.rule);
     const row: Coupon = {
       id: uid("CP"),
       customerId: input.customerId || "c-demo",
@@ -981,13 +1170,247 @@ export function StoreProvider({ children }: { children: ReactNode }) {
       rule: input.rule,
       expires: input.expires,
       status: "aktif",
+      discountPercent,
+      discountAmount: input.discountAmount,
     };
-    setState((s) => ({ ...s, coupons: [row, ...s.coupons] }));
+    setState((s) => ({
+      ...s,
+      coupons: [row, ...s.coupons],
+      notifications: notify(s.notifications, {
+        title: "Yeni kupon",
+        body: `${row.code} · ${row.title}`,
+        href: "/kuponlar",
+        audience: "customer",
+      }),
+    }));
     return row;
   }, []);
 
   const deleteCoupon = useCallback((id: string) => {
     setState((s) => ({ ...s, coupons: s.coupons.filter((c) => c.id !== id) }));
+  }, []);
+
+  const updateCouponStatus = useCallback((id: string, status: Coupon["status"]) => {
+    setState((s) => ({
+      ...s,
+      coupons: s.coupons.map((c) => (c.id === id ? { ...c, status } : c)),
+    }));
+  }, []);
+
+  const redeemCoupon = useCallback<Store["redeemCoupon"]>((code, baseAmount, customerId) => {
+    // Preview only — status flips to kullanildi after paid checkout
+    const s = state;
+    const cid = customerId || s.session.customerId || "c-demo";
+    const coupon = s.coupons.find(
+      (c) =>
+        c.code.toUpperCase() === code.toUpperCase() &&
+        c.status === "aktif" &&
+        (c.customerId === cid || c.customerId === "c-demo"),
+    );
+    if (!coupon) return null;
+    const discount = couponOffAmount(coupon, baseAmount);
+    if (discount <= 0) return null;
+    return { coupon, discount, amount: Math.max(0, baseAmount - discount) };
+  }, [state]);
+
+  const markCouponUsed = useCallback((id: string) => {
+    setState((s) => ({
+      ...s,
+      coupons: s.coupons.map((c) => (c.id === id ? { ...c, status: "kullanildi" as const } : c)),
+    }));
+  }, []);
+
+  const saveCustomer = useCallback<Store["saveCustomer"]>((input) => {
+    let saved!: Customer;
+    setState((s) => {
+      if (input.id) {
+        const customers = s.customers.map((c) =>
+          c.id === input.id
+            ? {
+                ...c,
+                name: input.name,
+                phone: input.phone,
+                plate: (input.plate ?? c.plate).toUpperCase(),
+                vehicle: input.vehicle ?? c.vehicle,
+              }
+            : c,
+        );
+        saved = customers.find((c) => c.id === input.id)!;
+        return { ...s, customers };
+      }
+      const next = upsertCustomer(s.customers, {
+        name: input.name,
+        phone: input.phone,
+        plate: input.plate || "",
+        vehicle: input.vehicle || "",
+      });
+      saved = next.customer;
+      return { ...s, customers: next.customers };
+    });
+    return saved;
+  }, []);
+
+  const deleteCustomer = useCallback((id: string) => {
+    setState((s) => ({ ...s, customers: s.customers.filter((c) => c.id !== id) }));
+  }, []);
+
+  const saveTechnician = useCallback<Store["saveTechnician"]>((input) => {
+    let saved!: Technician;
+    setState((s) => {
+      if (input.id) {
+        const technicians = s.technicians.map((t) =>
+          t.id === input.id
+            ? {
+                ...t,
+                name: input.name,
+                role: input.role,
+                shift: input.shift ?? t.shift,
+                load: input.load ?? t.load,
+              }
+            : t,
+        );
+        saved = technicians.find((t) => t.id === input.id)!;
+        return { ...s, technicians };
+      }
+      saved = {
+        id: uid("t").toLowerCase(),
+        name: input.name,
+        role: input.role,
+        shift: input.shift || "08:30–17:00",
+        load: input.load ?? 0,
+      };
+      return { ...s, technicians: [...s.technicians, saved] };
+    });
+    return saved;
+  }, []);
+
+  const deleteTechnician = useCallback((id: string) => {
+    setState((s) => ({ ...s, technicians: s.technicians.filter((t) => t.id !== id) }));
+  }, []);
+
+  const assignTechnician = useCallback((refId: string, technicianId: string) => {
+    setState((s) => {
+      const at = new Date().toISOString();
+      const tech = s.technicians.find((t) => t.id === technicianId);
+      const jobs = s.jobs.map((j) =>
+        j.id === refId
+          ? {
+              ...j,
+              technicianId,
+              updatedAt: at,
+              timeline: [
+                ...j.timeline,
+                { at, status: j.status, note: `Personel atandı: ${tech?.name ?? technicianId}` },
+              ],
+            }
+          : j,
+      );
+      const roadside = s.roadside.map((r) =>
+        r.id === refId
+          ? {
+              ...r,
+              technicianId,
+              updatedAt: at,
+              timeline: [
+                ...r.timeline,
+                { at, status: r.status, note: `Personel atandı: ${tech?.name ?? technicianId}` },
+              ],
+            }
+          : r,
+      );
+      return { ...s, jobs, roadside };
+    });
+  }, []);
+
+  const saveAccessory = useCallback<Store["saveAccessory"]>((input) => {
+    let saved!: Accessory;
+    setState((s) => {
+      const list = s.accessories.length ? s.accessories : cloneAccessories(ACCESSORIES);
+      if (input.id) {
+        const accessories = list.map((a) =>
+          a.id === input.id
+            ? {
+                ...a,
+                name: input.name,
+                category: input.category ?? a.category,
+                price: input.price,
+                stock: input.stock ?? a.stock,
+                description: input.description ?? a.description,
+              }
+            : a,
+        );
+        saved = accessories.find((a) => a.id === input.id)!;
+        return { ...s, accessories };
+      }
+      saved = {
+        id: uid("acc").toLowerCase(),
+        name: input.name,
+        category: input.category || "Diğer",
+        price: input.price,
+        stock: input.stock ?? 0,
+        description: input.description || "",
+      };
+      return { ...s, accessories: [...list, saved] };
+    });
+    return saved;
+  }, []);
+
+  const deleteAccessory = useCallback((id: string) => {
+    setState((s) => ({ ...s, accessories: s.accessories.filter((a) => a.id !== id) }));
+  }, []);
+
+  const setAccessoryStock = useCallback((id: string, stock: number) => {
+    setState((s) => ({
+      ...s,
+      accessories: (s.accessories.length ? s.accessories : cloneAccessories(ACCESSORIES)).map((a) =>
+        a.id === id ? { ...a, stock: Math.max(0, stock) } : a,
+      ),
+    }));
+  }, []);
+
+  const updateJobEstimate = useCallback((id: string, estimate: number, notes?: string) => {
+    setState((s) => ({
+      ...s,
+      jobs: s.jobs.map((j) =>
+        j.id === id
+          ? {
+              ...j,
+              estimate,
+              notes: notes ?? j.notes,
+              updatedAt: new Date().toISOString(),
+            }
+          : j,
+      ),
+      roadside: s.roadside.map((r) =>
+        r.id === id ? { ...r, amount: estimate, updatedAt: new Date().toISOString() } : r,
+      ),
+    }));
+  }, []);
+
+  const enqueueWhatsApp = useCallback<Store["enqueueWhatsApp"]>((input) => {
+    let url = "";
+    setState((s) => {
+      const wa = pushWhatsApp(s.whatsappOutbox, {
+        phone: input.phone,
+        text: input.text,
+        jobId: input.jobId,
+      });
+      url = wa.item.url;
+      if (input.open && typeof window !== "undefined") {
+        window.open(url, "_blank", "noopener,noreferrer");
+      }
+      return {
+        ...s,
+        whatsappOutbox: wa.outbox,
+        notifications: notify(s.notifications, {
+          title: "WhatsApp kuyruğa eklendi",
+          body: input.phone,
+          href: "/yonetici/bildirimler",
+          audience: "owner",
+        }),
+      };
+    });
+    return url;
   }, []);
 
   useEffect(() => {
@@ -1027,6 +1450,19 @@ export function StoreProvider({ children }: { children: ReactNode }) {
       patchCms,
       createOwnerCoupon,
       deleteCoupon,
+      updateCouponStatus,
+      redeemCoupon,
+      markCouponUsed,
+      saveCustomer,
+      deleteCustomer,
+      saveTechnician,
+      deleteTechnician,
+      assignTechnician,
+      saveAccessory,
+      deleteAccessory,
+      setAccessoryStock,
+      updateJobEstimate,
+      enqueueWhatsApp,
     }),
     [
       state,
@@ -1058,6 +1494,19 @@ export function StoreProvider({ children }: { children: ReactNode }) {
       patchCms,
       createOwnerCoupon,
       deleteCoupon,
+      updateCouponStatus,
+      redeemCoupon,
+      markCouponUsed,
+      saveCustomer,
+      deleteCustomer,
+      saveTechnician,
+      deleteTechnician,
+      assignTechnician,
+      saveAccessory,
+      deleteAccessory,
+      setAccessoryStock,
+      updateJobEstimate,
+      enqueueWhatsApp,
     ],
   );
 

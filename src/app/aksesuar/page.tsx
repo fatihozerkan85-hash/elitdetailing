@@ -12,31 +12,63 @@ import { ACCESSORIES } from "@/lib/catalog";
 import { startIyzicoCheckout } from "@/lib/checkout-draft";
 import { tryFormat, uid } from "@/lib/format";
 import { useStore } from "@/lib/store";
+import { textMap } from "@/lib/site-cms";
 
 export default function AksesuarPage() {
-  const { cart, addToCart, setCartQty, removeFromCart, session } = useStore();
+  const { cart, addToCart, setCartQty, removeFromCart, session, accessories, cms, redeemCoupon } = useStore();
+  const list = accessories.length ? accessories : ACCESSORIES;
+  const formDef = cms.forms.find((f) => f.id === "form-aksesuar");
+  const fieldOn = (key: string) =>
+    !formDef || (formDef.enabled && (formDef.fields.find((f) => f.key === key)?.enabled ?? true));
+  const fieldReq = (key: string) => formDef?.fields.find((f) => f.key === key)?.required ?? true;
+  const fieldLabel = (key: string, fallback: string) =>
+    formDef?.fields.find((f) => f.key === key)?.label || fallback;
+  const lead = textMap(cms.texts)["aksesuar.lead"];
   const [name, setName] = useState(session.name !== "Misafir" ? session.name : "Demo Müşteri");
   const [phone, setPhone] = useState("05551234567");
   const [email, setEmail] = useState("demo@elitdetailing.com");
   const [notes, setNotes] = useState("");
+  const [couponCode, setCouponCode] = useState("");
   const [pending, setPending] = useState(false);
 
   const lines = useMemo(
     () =>
       cart
         .map((c) => {
-          const acc = ACCESSORIES.find((a) => a.id === c.accessoryId);
+          const acc = list.find((a) => a.id === c.accessoryId);
           return acc ? { ...c, acc } : null;
         })
-        .filter(Boolean) as { accessoryId: string; qty: number; acc: (typeof ACCESSORIES)[number] }[],
-    [cart],
+        .filter(Boolean) as { accessoryId: string; qty: number; acc: (typeof list)[number] }[],
+    [cart, list],
   );
-  const total = lines.reduce((s, l) => s + l.acc.price * l.qty, 0);
+  const subtotal = lines.reduce((s, l) => s + l.acc.price * l.qty, 0);
+  const redeem = couponCode.trim() ? redeemCoupon(couponCode.trim(), subtotal) : null;
+  const total = redeem ? redeem.amount : subtotal;
+
+  if (formDef && !formDef.enabled) {
+    return (
+      <PublicShell>
+        <div className="mx-auto max-w-6xl px-4 py-12">
+          <p className="text-sm text-zinc-400">Aksesuar siparişi şu an kapalı.</p>
+        </div>
+      </PublicShell>
+    );
+  }
 
   async function checkout(e: React.FormEvent) {
     e.preventDefault();
     if (!lines.length) {
       toast.error("Sepet boş");
+      return;
+    }
+    for (const l of lines) {
+      if (l.qty > l.acc.stock) {
+        toast.error("Stok yetersiz", { description: l.acc.name });
+        return;
+      }
+    }
+    if (couponCode.trim() && !redeem) {
+      toast.error("Kupon geçersiz veya kullanılmış");
       return;
     }
     setPending(true);
@@ -67,6 +99,9 @@ export default function AksesuarPage() {
           payload: {
             notes,
             lines: lines.map((l) => ({ accessoryId: l.accessoryId, qty: l.qty })),
+            couponCode: redeem?.coupon.code,
+            couponId: redeem?.coupon.id,
+            discount: redeem?.discount,
           },
         },
       });
@@ -80,9 +115,11 @@ export default function AksesuarPage() {
     <PublicShell>
       <div className="mx-auto max-w-6xl px-4 py-12">
         <h1 className="font-[family-name:var(--font-display)] text-4xl uppercase">Aksesuar</h1>
-        <p className="mt-2 max-w-xl text-sm text-zinc-400">Sepete ekleyin, iyzico ile tam ödeme. Nakit yok.</p>
+        <p className="mt-2 max-w-xl text-sm text-zinc-400">
+          {lead || "Sepete ekleyin, iyzico ile tam ödeme. Nakit yok."}
+        </p>
         <div className="mt-8 grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
-          {ACCESSORIES.map((a) => (
+          {list.map((a) => (
             <Card key={a.id} className="border-white/10 bg-zinc-900/50">
               <CardHeader>
                 <CardTitle className="text-base">{a.name}</CardTitle>
@@ -138,25 +175,62 @@ export default function AksesuarPage() {
                   </li>
                 ))}
               </ul>
-              <p className="text-lg text-amber-200">Toplam {tryFormat(total)}</p>
+              <div className="grid gap-2 sm:max-w-xs">
+                <Label>Kupon kodu</Label>
+                <Input
+                  value={couponCode}
+                  onChange={(e) => setCouponCode(e.target.value.toUpperCase())}
+                  placeholder="ELIT20"
+                />
+                {redeem ? (
+                  <p className="text-xs text-emerald-300">
+                    −{tryFormat(redeem.discount)} uygulandı
+                  </p>
+                ) : couponCode.trim() ? (
+                  <p className="text-xs text-red-300">Kupon bulunamadı</p>
+                ) : null}
+              </div>
+              <p className="text-lg text-amber-200">
+                {redeem && redeem.discount > 0 ? (
+                  <>
+                    <span className="mr-2 text-sm text-zinc-500 line-through">{tryFormat(subtotal)}</span>
+                    {tryFormat(total)}
+                  </>
+                ) : (
+                  <>Toplam {tryFormat(total)}</>
+                )}
+              </p>
               <div className="grid gap-3 sm:grid-cols-3">
-                <div className="grid gap-2">
-                  <Label>Ad</Label>
-                  <Input value={name} onChange={(e) => setName(e.target.value)} required />
-                </div>
-                <div className="grid gap-2">
-                  <Label>Telefon</Label>
-                  <Input value={phone} onChange={(e) => setPhone(e.target.value)} required />
-                </div>
-                <div className="grid gap-2">
-                  <Label>E-posta</Label>
-                  <Input type="email" value={email} onChange={(e) => setEmail(e.target.value)} required />
-                </div>
+                {fieldOn("name") ? (
+                  <div className="grid gap-2">
+                    <Label>{fieldLabel("name", "Ad")}</Label>
+                    <Input value={name} onChange={(e) => setName(e.target.value)} required={fieldReq("name")} />
+                  </div>
+                ) : null}
+                {fieldOn("phone") ? (
+                  <div className="grid gap-2">
+                    <Label>{fieldLabel("phone", "Telefon")}</Label>
+                    <Input value={phone} onChange={(e) => setPhone(e.target.value)} required={fieldReq("phone")} />
+                  </div>
+                ) : null}
+                {fieldOn("email") ? (
+                  <div className="grid gap-2">
+                    <Label>{fieldLabel("email", "E-posta")}</Label>
+                    <Input
+                      type="email"
+                      value={email}
+                      onChange={(e) => setEmail(e.target.value)}
+                      required={fieldReq("email")}
+                    />
+                  </div>
+                ) : null}
               </div>
-              <div className="grid gap-2">
-                <Label>Not (model, renk, montaj)</Label>
-                <Input value={notes} onChange={(e) => setNotes(e.target.value)} />
-              </div>
+              {fieldOn("notes") ? (
+                <div className="grid gap-2">
+                  <Label>{fieldLabel("notes", "Not (model, renk, montaj)")}</Label>
+                  <Input value={notes} onChange={(e) => setNotes(e.target.value)} />
+                </div>
+              ) : null}
               <Button type="submit" size="lg" disabled={pending}>
                 {pending ? "iyzico’ya yönlendiriliyor…" : `iyzico ile ${tryFormat(total)} öde`}
               </Button>

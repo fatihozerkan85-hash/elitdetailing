@@ -202,6 +202,8 @@ export type Notification = {
   href: string;
   at: string;
   read: boolean;
+  /** owner = panel only; customer = public feed; all = both */
+  audience?: "owner" | "customer" | "all";
 };
 
 export type Session = {
@@ -220,6 +222,8 @@ export type Coupon = {
   rule: string;
   expires: string;
   status: CouponStatus;
+  discountPercent?: number;
+  discountAmount?: number;
 };
 
 export type WhatsAppOutboxItem = {
@@ -236,6 +240,7 @@ export type AppState = {
   session: Session;
   customers: Customer[];
   technicians: Technician[];
+  accessories: Accessory[];
   jobs: Job[];
   appointments: Appointment[];
   roadside: RoadsideCall[];

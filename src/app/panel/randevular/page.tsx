@@ -1,14 +1,14 @@
 "use client";
 
+import Link from "next/link";
 import { PanelShell } from "@/components/panel-shell";
 import { StatusBadge } from "@/components/status-badge";
 import { Button } from "@/components/ui/button";
-import { SERVICES } from "@/lib/catalog";
 import { occupancyMin } from "@/lib/process";
 import { useStore } from "@/lib/store";
 
 export default function PanelRandevular() {
-  const { appointments, jobs, updateAppointmentStatus, checkInAppointment } = useStore();
+  const { appointments, jobs, cms, updateAppointmentStatus, checkInAppointment } = useStore();
   return (
     <PanelShell>
       <h1 className="font-[family-name:var(--font-display)] text-3xl uppercase">Randevular</h1>
@@ -28,7 +28,7 @@ export default function PanelRandevular() {
           </thead>
           <tbody>
             {appointments.map((a) => {
-              const svc = SERVICES.find((s) => s.id === a.serviceId);
+              const svc = cms.services.find((s) => s.id === a.serviceId);
               const job = jobs.find((j) => j.appointmentId === a.id);
               const started = Boolean(job?.startedAt);
               return (
@@ -43,16 +43,18 @@ export default function PanelRandevular() {
                   <td className="px-3 py-3">
                     {a.serviceName}
                     <div className="text-xs text-zinc-500">
-                      {svc ? `${svc.durationMin} dk · ${svc.segments.length} adım · defter ${occupancyMin(svc)} dk` : ""}
+                      {svc
+                        ? `${svc.durationMin} dk · ${svc.segments.length} adım · defter ${occupancyMin(svc)} dk`
+                        : ""}
                     </div>
                   </td>
                   <td className="px-3 py-3">
                     <StatusBadge status={a.status} />
                     {started ? (
                       <p className="mt-1 text-[10px] tracking-wide text-emerald-300 uppercase">Süreç açık</p>
-                    ) : (
+                    ) : a.status !== "iptal" ? (
                       <p className="mt-1 text-[10px] tracking-wide text-amber-200/80 uppercase">Giriş bekleniyor</p>
-                    )}
+                    ) : null}
                   </td>
                   <td className="px-3 py-3">
                     <div className="flex flex-wrap gap-2">
@@ -61,9 +63,19 @@ export default function PanelRandevular() {
                           Slot onayla
                         </Button>
                       ) : null}
-                      {job && !started && job.status !== "iptal" ? (
+                      {job && !started && job.status !== "iptal" && a.status !== "iptal" ? (
                         <Button size="sm" onClick={() => checkInAppointment(a.id)}>
                           Girişi onayla
+                        </Button>
+                      ) : null}
+                      {job ? (
+                        <Button size="sm" variant="ghost" asChild>
+                          <Link href={`/yonetici/isler/${job.id}`}>İş</Link>
+                        </Button>
+                      ) : null}
+                      {a.status !== "iptal" && a.status !== "tamamlandi" ? (
+                        <Button size="sm" variant="destructive" onClick={() => updateAppointmentStatus(a.id, "iptal")}>
+                          İptal
                         </Button>
                       ) : null}
                     </div>

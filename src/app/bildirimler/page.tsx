@@ -8,6 +8,12 @@ import { useStore } from "@/lib/store";
 
 export default function BildirimlerPage() {
   const { notifications, markAllNotificationsRead, campaignNotif, couponNotif, setNotifPrefs } = useStore();
+  const mine = notifications.filter(
+    (n) =>
+      n.audience === "customer" ||
+      n.audience === "all" ||
+      (!n.audience && !n.href.startsWith("/yonetici") && !n.href.startsWith("/panel")),
+  );
 
   return (
     <PublicShell>
@@ -37,10 +43,10 @@ export default function BildirimlerPage() {
           </label>
         </div>
         <div className="mt-6 space-y-2">
-          {notifications.length === 0 ? (
+          {mine.length === 0 ? (
             <EmptyState title="Bildirim yok" hint="Kampanya, kupon ve iş durumları burada görünür." />
           ) : (
-            notifications.map((n) => (
+            mine.map((n) => (
               <Link
                 key={n.id}
                 href={n.href}
