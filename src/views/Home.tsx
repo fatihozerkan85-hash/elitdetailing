@@ -294,7 +294,7 @@ export default function Home() {
         <div style={{ fontSize: 11, letterSpacing: '0.4em', color: 'rgba(201,168,76,0.55)', marginBottom: 20, fontFamily: 'Raleway, sans-serif', fontWeight: 600 }}>{t['cta.kicker'] || '✦   RANDEVU'}</div>
         <h2 className="font-display text-gold-gradient" style={{ fontSize: 'clamp(1.6rem, 4vw, 3rem)', fontWeight: 700, marginBottom: 18 }}>{t['cta.title']}</h2>
         <p className="home-cta-lead">{t['cta.lead']}</p>
-        <button className="btn-gold" onClick={()=>user?scrollTo('services'):navigate('/randevu')} style={{ padding: '16px 52px', fontSize: 13, letterSpacing: '0.1em', borderRadius: 2, fontFamily: 'Raleway, sans-serif', fontWeight: 700 }}>{t['cta.button'] || 'Hemen Randevu Al'}</button>
+        <button className="btn-gold" onClick={()=>isCustomer?scrollTo('services'):navigate('/randevu')} style={{ padding: '16px 52px', fontSize: 13, letterSpacing: '0.1em', borderRadius: 2, fontFamily: 'Raleway, sans-serif', fontWeight: 700 }}>{t['cta.button'] || 'Hemen Randevu Al'}</button>
       </section>
 
       <section id="contact" className="home-contact">
