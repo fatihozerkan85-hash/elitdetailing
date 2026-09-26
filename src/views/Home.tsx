@@ -13,7 +13,7 @@ const navLinks = ['Anasayfa', 'Hizmetler', 'Hakkımızda', 'İletişim'];
 export default function Home() {
   const router = useRouter();
   const navigate = (path: string) => router.push(path);
-  const { cms, ready, session, logout } = useStore();
+  const { cms, ready, session } = useStore();
   const isCustomer = ready && session.role === 'customer' && Boolean(session.customerId);
   const customerName = isCustomer ? session.name.trim() : '';
   const [logoutOpen, setLogoutOpen] = useState(false);

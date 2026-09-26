@@ -29,7 +29,9 @@ export async function POST(req: Request) {
           to: [to],
           subject,
           text,
-          html: body.html || `<pre style="font-family:sans-serif;white-space:pre-wrap">${text}</pre>`,
+          html:
+            body.html ||
+            `<!DOCTYPE html><html><body style="margin:0;background:#080808;color:#f0e6c8;font-family:Arial,sans-serif;padding:24px;"><pre style="white-space:pre-wrap;font-family:Arial,sans-serif;color:#f0e6c8;">${text.replace(/</g, "&lt;")}</pre></body></html>`,
         }),
       });
       const json = (await res.json()) as { id?: string; message?: string };

@@ -98,19 +98,19 @@ export default function PanelAyarlarPage() {
             const to = window.prompt("Test e-posta adresi (Resend hesabınızdaki adres)");
             if (!to || !to.includes("@")) return;
             try {
+              const { buildWelcomeEmail } = await import("@/lib/email");
+              const payload = buildWelcomeEmail({ name: "Fatih", email: to });
               const res = await fetch("/api/email", {
                 method: "POST",
                 headers: { "Content-Type": "application/json" },
                 body: JSON.stringify({
-                  to,
-                  subject: "Elit Detailing — Resend test",
-                  text: "Bu bir test mesajıdır. Resend çalışıyorsa bu mail kutunuza düşer.",
-                  kind: "welcome",
+                  ...payload,
+                  subject: "Elit Detailing — markalı mail testi",
                 }),
               });
               const json = (await res.json()) as { ok?: boolean; mode?: string; error?: string; id?: string };
               if (json.ok && json.mode === "resend") {
-                toast.success("Resend gönderdi", { description: json.id });
+                toast.success("Resend gönderdi (markalı HTML)", { description: json.id });
               } else if (json.ok && json.mode === "mock") {
                 toast.message("Hâlâ mock", {
                   description: "Vercel’e RESEND_API_KEY ekleyip redeploy edin.",
