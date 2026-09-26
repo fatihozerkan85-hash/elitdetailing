@@ -4,6 +4,7 @@ const nextConfig: NextConfig = {
   typescript: {
     ignoreBuildErrors: true,
   },
+  allowedDevOrigins: ["127.0.0.1", "localhost"],
   async redirects() {
     return [
       { source: "/panel", destination: "/yonetici", permanent: false },
