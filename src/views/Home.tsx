@@ -216,7 +216,7 @@ export default function Home() {
           <p className="home-hero-lead">{t['hero.lead']}</p>
           <div className="home-hero-actions">
             <button className="btn-gold" onClick={() => scrollTo('services')} style={{ padding: '15px 42px', fontSize: 13, letterSpacing: '0.1em', borderRadius: 2, fontFamily: 'Raleway, sans-serif', fontWeight: 700 }}>{t['hero.ctaPrimary'] || 'Hizmetleri Keşfet'}</button>
-            <button className="btn-outline-gold" onClick={() => user ? scrollTo('services') : navigate('/login')} style={{ padding: '15px 42px', fontSize: 13, letterSpacing: '0.1em', borderRadius: 2, fontFamily: 'Raleway, sans-serif', fontWeight: 600 }}>{user ? 'Randevu Al' : (t['hero.ctaSecondary'] || 'Giriş Yap')}</button>
+            <button className="btn-outline-gold" onClick={() => isCustomer ? scrollTo('services') : navigate('/giris')} style={{ padding: '15px 42px', fontSize: 13, letterSpacing: '0.1em', borderRadius: 2, fontFamily: 'Raleway, sans-serif', fontWeight: 600 }}>{isCustomer ? 'Randevu Al' : (t['hero.ctaSecondary'] || 'Giriş Yap')}</button>
           </div>
         </div>
         <div className="home-hero-scroll">
