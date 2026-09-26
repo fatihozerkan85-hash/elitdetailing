@@ -1,7 +1,6 @@
 'use client';
 import { useState, useEffect, useMemo } from 'react';
 import { useRouter } from 'next/navigation';
-import { useAuth } from '../context/AuthContext';
 import { useStore } from '../lib/store';
 import { textMap } from '../lib/site-cms';
 import logoImg from '../assets/elite-logo.png';
@@ -13,8 +12,9 @@ const navLinks = ['Anasayfa', 'Hizmetler', 'Hakkımızda', 'İletişim'];
 export default function Home() {
   const router = useRouter();
   const navigate = (path: string) => router.push(path);
-  const { user, logout } = useAuth();
-  const { cms, ready } = useStore();
+  const { cms, ready, session, logout } = useStore();
+  const isCustomer = ready && session.role === 'customer' && Boolean(session.customerId);
+  const customerName = isCustomer ? session.name.trim() : '';
   const t = useMemo(() => textMap(cms.texts), [cms.texts]);
   const announcements = useMemo(() => cms.ticker.filter((x) => x.active), [cms.ticker]);
   const campaigns = useMemo(
@@ -65,6 +65,13 @@ export default function Home() {
 
   const navTarget = (l: string) => (l === 'Anasayfa' ? 'hero' : l === 'Hizmetler' ? 'services' : l === 'Hakkımızda' ? 'about' : 'contact');
 
+  function handleLogout() {
+    setUserMenuOpen(false);
+    if (!window.confirm('Çıkış yapmak istediğinize emin misiniz?')) return;
+    logout();
+    navigate('/');
+  }
+
   if (!ready) {
     return <div style={{ background: '#080808', minHeight: '100vh' }} />;
   }
@@ -97,25 +104,25 @@ export default function Home() {
           ))}
         </div>
         <div className="site-nav-actions">
-          {user ? (
+          {isCustomer ? (
             <div style={{ position: 'relative' }}>
               <button type="button" className="site-nav-user" onClick={() => setUserMenuOpen(!userMenuOpen)}>
-                <div className="site-nav-avatar">{user.name.charAt(0).toUpperCase()}</div>
+                <div className="site-nav-avatar">{customerName.charAt(0).toUpperCase()}</div>
                 <div className="site-nav-user-copy">
                   <div style={{ fontSize: 10, color: 'rgba(201,168,76,0.55)', fontFamily: 'Raleway, sans-serif', letterSpacing: '0.1em' }}>HOŞGELDİN</div>
-                  <div className="font-display text-gold" style={{ fontSize: 14, fontWeight: 600, lineHeight: 1.2 }}>{user.name} {user.surname}</div>
+                  <div className="font-display text-gold" style={{ fontSize: 14, fontWeight: 600, lineHeight: 1.2 }}>{customerName}</div>
                 </div>
                 <span style={{ color: 'rgba(201,168,76,0.5)', fontSize: 10 }}>{userMenuOpen ? '▲' : '▼'}</span>
               </button>
               {userMenuOpen && (
                 <div className="site-nav-dropdown">
-                  <button type="button" onClick={() => { setUserMenuOpen(false); navigate('/dashboard'); }}>Hesabım</button>
-                  <button type="button" onClick={() => { setUserMenuOpen(false); logout(); }}>Çıkış Yap</button>
+                  <button type="button" onClick={() => { setUserMenuOpen(false); navigate('/profil'); }}>Hesabım</button>
+                  <button type="button" onClick={handleLogout}>Çıkış Yap</button>
                 </div>
               )}
             </div>
           ) : (
-            <button className="btn-gold site-nav-login" type="button" onClick={() => navigate('/login')}>Giriş Yap</button>
+            <button className="btn-gold site-nav-login" type="button" onClick={() => navigate('/giris')}>Giriş Yap</button>
           )}
           <button
             type="button"
@@ -132,6 +139,14 @@ export default function Home() {
             {navLinks.map(l => (
               <button key={l} type="button" className="site-nav-panel-link" onClick={() => scrollTo(navTarget(l))}>{l}</button>
             ))}
+            {isCustomer ? (
+              <>
+                <button type="button" className="site-nav-panel-link" onClick={() => { setNavOpen(false); navigate('/profil'); }}>Hesabım</button>
+                <button type="button" className="site-nav-panel-link" onClick={handleLogout}>Çıkış Yap</button>
+              </>
+            ) : (
+              <button type="button" className="site-nav-panel-link" onClick={() => { setNavOpen(false); navigate('/giris'); }}>Giriş Yap</button>
+            )}
           </div>
         ) : null}
       </nav>

@@ -93,6 +93,8 @@ export type Customer = {
   emailVerified?: boolean;
   resetToken?: string;
   resetTokenExpires?: string;
+  verifyToken?: string;
+  verifyTokenExpires?: string;
   /** Primary plate — synced from active vehicle */
   plate: string;
   /** Primary vehicle label — synced from active vehicle */

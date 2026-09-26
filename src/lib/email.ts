@@ -27,7 +27,7 @@ export type EmailSendResult = {
 };
 
 export function emailConfigured() {
-  return Boolean(process.env.RESEND_API_KEY || process.env.SMTP_HOST);
+  return Boolean(process.env.RESEND_API_KEY);
 }
 
 export function buildWelcomeEmail(input: { name: string; email: string }) {

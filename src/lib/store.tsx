@@ -17,6 +17,7 @@ import {
   buildAppointmentReceiptEmail,
   buildCampaignEmail,
   buildCouponEmail,
+  buildEmailVerifyEmail,
   buildPasswordChangedEmail,
   buildPasswordResetEmail,
   buildPaymentReceiptEmail,
@@ -25,7 +26,7 @@ import {
   type EmailPayload,
 } from "./email";
 import { uid } from "./format";
-import { cloneAccessories, couponOffAmount, hydrateCustomer, inferDiscountPercent, makeVehicle, upsertCustomer, withActiveVehicle } from "./ops";
+import { cloneAccessories, couponExpired, couponOffAmount, hydrateCustomer, inferDiscountPercent, makeVehicle, upsertCustomer, withActiveVehicle } from "./ops";
 import { jobClock, hydrateJob, segmentsFor } from "./process";
 import { buildSeed } from "./seed";
 import { buildDefaultCms, type SiteCms } from "./site-cms";
@@ -80,6 +81,7 @@ type Store = AppState & {
   requestPasswordReset: (phoneOrEmail: string) => { ok: boolean; message: string; demoUrl?: string };
   resetPassword: (token: string, newPassword: string) => { ok: boolean; message: string };
   changePassword: (currentPassword: string, newPassword: string) => { ok: boolean; message: string };
+  verifyEmail: (token: string) => { ok: boolean; message: string };
   addVehicle: (input: { plate: string; label: string }) => Vehicle | null;
   removeVehicle: (vehicleId: string) => void;
   setActiveVehicle: (vehicleId: string) => void;
@@ -320,6 +322,8 @@ export function StoreProvider({ children }: { children: ReactNode }) {
               coupons: (parsed.coupons ?? seed.coupons).map((c) => ({
                 ...c,
                 discountPercent: c.discountPercent ?? inferDiscountPercent(c.code, c.rule),
+                status:
+                  c.status === "aktif" && couponExpired(c.expires) ? ("doldu" as const) : c.status,
               })),
               customers: (parsed.customers ?? seed.customers).map((c) => {
                 const h = hydrateCustomer(c);
@@ -385,23 +389,34 @@ export function StoreProvider({ children }: { children: ReactNode }) {
         plate: input.plate,
         vehicle: input.vehicle,
       });
+      const verifyToken = makeResetToken();
       const withAuth: Customer = {
         ...customer,
         email: input.email.trim(),
         passwordHash: hashPassword(input.password),
         emailVerified: false,
+        verifyToken,
+        verifyTokenExpires: new Date(Date.now() + 7 * 24 * 60 * 60_000).toISOString(),
       };
       created = withAuth;
-      const welcome = buildWelcomeEmail({ name: withAuth.name, email: withAuth.email! });
-      const mail = enqueueEmail(s.emailOutbox ?? [], welcome);
+      const origin = typeof window !== "undefined" ? window.location.origin : "https://www.elitdetailing.com";
+      const verifyUrl = `${origin}/eposta-dogrula?token=${encodeURIComponent(verifyToken)}`;
+      let emailOutbox = enqueueEmail(
+        s.emailOutbox ?? [],
+        buildWelcomeEmail({ name: withAuth.name, email: withAuth.email! }),
+      ).outbox;
+      emailOutbox = enqueueEmail(
+        emailOutbox,
+        buildEmailVerifyEmail({ name: withAuth.name, email: withAuth.email!, verifyUrl }),
+      ).outbox;
       return {
         ...s,
         customers: customers.map((c) => (c.id === withAuth.id ? withAuth : c)),
-        emailOutbox: mail.outbox,
+        emailOutbox,
         session: { role: "customer" as const, customerId: withAuth.id, name: withAuth.name },
         notifications: notify(s.notifications, {
           title: "Hoş geldiniz",
-          body: "Hesabınız hazır. Hoş geldin e-postası gönderildi.",
+          body: "Hesabınız hazır. Hoş geldin ve doğrulama e-postası gönderildi.",
           href: "/profil",
           audience: "customer",
         }),
@@ -508,6 +523,42 @@ export function StoreProvider({ children }: { children: ReactNode }) {
       }
       result = { ok: true, message: "Şifre değiştirildi" };
       return { ...s, customers: s.customers.map((c) => (c.id === found.id ? updated : c)), emailOutbox };
+    });
+    return result;
+  }, []);
+
+  const verifyEmail = useCallback<Store["verifyEmail"]>((token) => {
+    let result = { ok: false, message: "Geçersiz veya süresi dolmuş link" };
+    setState((s) => {
+      const found = s.customers.find(
+        (c) =>
+          c.verifyToken === token &&
+          c.verifyTokenExpires &&
+          new Date(c.verifyTokenExpires).getTime() > Date.now(),
+      );
+      if (!found) return s;
+      result = { ok: true, message: "E-posta doğrulandı" };
+      return {
+        ...s,
+        customers: s.customers.map((c) =>
+          c.id === found.id
+            ? {
+                ...hydrateCustomer(c),
+                emailVerified: true,
+                verifyToken: undefined,
+                verifyTokenExpires: undefined,
+                passwordHash: c.passwordHash,
+                email: found.email,
+              }
+            : c,
+        ),
+        notifications: notify(s.notifications, {
+          title: "E-posta doğrulandı",
+          body: "Hesabınızın e-posta adresi onaylandı.",
+          href: "/profil",
+          audience: "customer",
+        }),
+      };
     });
     return result;
   }, []);
@@ -1701,6 +1752,7 @@ export function StoreProvider({ children }: { children: ReactNode }) {
       (c) =>
         c.code.toUpperCase() === code.toUpperCase() &&
         c.status === "aktif" &&
+        !couponExpired(c.expires) &&
         c.customerId === cid,
     );
     if (!coupon) return null;
@@ -1935,6 +1987,7 @@ export function StoreProvider({ children }: { children: ReactNode }) {
       requestPasswordReset,
       resetPassword,
       changePassword,
+      verifyEmail,
       addVehicle,
       removeVehicle,
       setActiveVehicle,
@@ -1989,6 +2042,7 @@ export function StoreProvider({ children }: { children: ReactNode }) {
       requestPasswordReset,
       resetPassword,
       changePassword,
+      verifyEmail,
       addVehicle,
       removeVehicle,
       setActiveVehicle,

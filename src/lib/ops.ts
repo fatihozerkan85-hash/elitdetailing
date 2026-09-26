@@ -37,6 +37,8 @@ export function hydrateCustomer(raw: Partial<Customer> & { id: string; name: str
     emailVerified: raw.emailVerified,
     resetToken: raw.resetToken,
     resetTokenExpires: raw.resetTokenExpires,
+    verifyToken: raw.verifyToken,
+    verifyTokenExpires: raw.verifyTokenExpires,
     plate: active?.plate || plate,
     vehicle: active?.label || vehicle,
     vehicles,
@@ -133,6 +135,36 @@ export function couponOffAmount(coupon: Coupon, baseAmount: number): number {
     if (amt > 0) return Math.min(baseAmount, amt);
   }
   return 0;
+}
+
+export function couponExpired(expires: string): boolean {
+  const raw = expires.trim();
+  if (!raw) return false;
+  const iso = Date.parse(raw);
+  if (!Number.isNaN(iso)) return iso < Date.now();
+  const tr = raw.match(/(\d{1,2})\s+(Ocak|Şubat|Mart|Nisan|Mayıs|Haziran|Temmuz|Ağustos|Eylül|Ekim|Kasım|Aralık)\s+(\d{4})/i);
+  if (tr) {
+    const months: Record<string, number> = {
+      ocak: 0,
+      şubat: 1,
+      mart: 2,
+      nisan: 3,
+      mayıs: 4,
+      haziran: 5,
+      temmuz: 6,
+      ağustos: 7,
+      eylül: 8,
+      ekim: 9,
+      kasım: 10,
+      aralık: 11,
+    };
+    const m = months[tr[2]!.toLocaleLowerCase("tr-TR")];
+    if (m != null) {
+      const d = new Date(Number(tr[3]), m, Number(tr[1]), 23, 59, 59);
+      return d.getTime() < Date.now();
+    }
+  }
+  return false;
 }
 
 export function inferDiscountPercent(code: string, rule: string): number | undefined {
