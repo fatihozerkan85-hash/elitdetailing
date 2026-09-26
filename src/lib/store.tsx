@@ -554,11 +554,15 @@ export function StoreProvider({ children }: { children: ReactNode }) {
 
   const addToCart = useCallback<Store["addToCart"]>((accessoryId, qty = 1) => {
     setState((s) => {
+      const catalog = s.accessories.length ? s.accessories : cloneAccessories(ACCESSORIES);
+      const acc = catalog.find((a) => a.id === accessoryId);
+      if (!acc || acc.stock <= 0) return s;
       const exists = s.cart.find((c) => c.accessoryId === accessoryId);
+      const nextQty = Math.min(acc.stock, (exists?.qty ?? 0) + qty);
       const cart: CartLine[] = exists
-        ? s.cart.map((c) => (c.accessoryId === accessoryId ? { ...c, qty: c.qty + qty } : c))
-        : [...s.cart, { accessoryId, qty }];
-      return { ...s, cart };
+        ? s.cart.map((c) => (c.accessoryId === accessoryId ? { ...c, qty: nextQty } : c))
+        : [...s.cart, { accessoryId, qty: Math.min(acc.stock, qty) }];
+      return { ...s, accessories: catalog, cart };
     });
   }, []);
 
