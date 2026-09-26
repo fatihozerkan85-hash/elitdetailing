@@ -10,6 +10,7 @@ import {
   VehicleManager,
   useMe,
 } from "@/components/customer-panel";
+import { LogoutConfirmDialog } from "@/components/logout-confirm";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
@@ -26,7 +27,6 @@ export default function ProfilPage() {
     setNotifPrefs,
     updateCustomerProfile,
     changePassword,
-    logout,
   } = useStore();
   const router = useRouter();
   const [editing, setEditing] = useState(false);
@@ -37,6 +37,7 @@ export default function ProfilPage() {
   const [currentPw, setCurrentPw] = useState("");
   const [newPw, setNewPw] = useState("");
   const [newPw2, setNewPw2] = useState("");
+  const [logoutOpen, setLogoutOpen] = useState(false);
 
   if (session.role !== "customer" || !me) {
     return (
@@ -264,14 +265,12 @@ export default function ProfilPage() {
       <Button
         className="h-11 w-full"
         variant="outline"
-        onClick={() => {
-          if (!window.confirm("Çıkış yapmak istediğinize emin misiniz?")) return;
-          logout();
-          router.push("/");
-        }}
+        data-testid="profil-logout"
+        onClick={() => setLogoutOpen(true)}
       >
         Çıkış yap
       </Button>
+      <LogoutConfirmDialog open={logoutOpen} onOpenChange={setLogoutOpen} />
     </CustomerPanel>
   );
 }

@@ -3,6 +3,7 @@ import { useState, useEffect, useMemo } from 'react';
 import { useRouter } from 'next/navigation';
 import { useStore } from '../lib/store';
 import { textMap } from '../lib/site-cms';
+import { LogoutConfirmDialog } from '../components/logout-confirm';
 import logoImg from '../assets/elite-logo.png';
 
 const logoSrc = typeof logoImg === 'string' ? logoImg : logoImg.src;
@@ -15,6 +16,7 @@ export default function Home() {
   const { cms, ready, session, logout } = useStore();
   const isCustomer = ready && session.role === 'customer' && Boolean(session.customerId);
   const customerName = isCustomer ? session.name.trim() : '';
+  const [logoutOpen, setLogoutOpen] = useState(false);
   const t = useMemo(() => textMap(cms.texts), [cms.texts]);
   const announcements = useMemo(() => cms.ticker.filter((x) => x.active), [cms.ticker]);
   const campaigns = useMemo(
@@ -67,9 +69,7 @@ export default function Home() {
 
   function handleLogout() {
     setUserMenuOpen(false);
-    if (!window.confirm('Çıkış yapmak istediğinize emin misiniz?')) return;
-    logout();
-    navigate('/');
+    setLogoutOpen(true);
   }
 
   if (!ready) {
@@ -150,6 +150,7 @@ export default function Home() {
           </div>
         ) : null}
       </nav>
+      <LogoutConfirmDialog open={logoutOpen} onOpenChange={setLogoutOpen} />
 
       <div className="home-ticker">
         <div className="home-ticker-fade home-ticker-fade-l"/>

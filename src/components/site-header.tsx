@@ -2,10 +2,11 @@
 
 import Image from "next/image";
 import Link from "next/link";
-import { usePathname, useRouter } from "next/navigation";
+import { usePathname } from "next/navigation";
+import { useState, type ReactNode } from "react";
 import { LogOut, Menu, Shield, Siren } from "lucide-react";
-import type { ReactNode } from "react";
-import { buttonVariants } from "@/components/ui/button";
+import { LogoutConfirmDialog } from "@/components/logout-confirm";
+import { Button, buttonVariants } from "@/components/ui/button";
 import { Sheet, SheetContent, SheetHeader, SheetTitle, SheetTrigger } from "@/components/ui/sheet";
 import { BRAND } from "@/lib/catalog";
 import { useStore } from "@/lib/store";
@@ -38,18 +39,10 @@ export function BrandMark({ href = "/" }: { href?: string }) {
   );
 }
 
-function confirmLogout(logout: () => void, goHome: () => void) {
-  if (typeof window === "undefined") return;
-  const ok = window.confirm("Çıkış yapmak istediğinize emin misiniz?");
-  if (!ok) return;
-  logout();
-  goHome();
-}
-
 export function SiteHeader({ variant = "public" }: { variant?: "public" | "panel" }) {
   const path = usePathname();
-  const router = useRouter();
-  const { session, inbox, notifications, logout, ready } = useStore();
+  const { session, inbox, notifications, ready } = useStore();
+  const [logoutOpen, setLogoutOpen] = useState(false);
   const isCustomer = ready && session.role === "customer" && Boolean(session.customerId);
   const customerName = isCustomer ? session.name.trim() : "";
 
@@ -57,10 +50,6 @@ export function SiteHeader({ variant = "public" }: { variant?: "public" | "panel
     ? inbox.filter((i) => i.unread && i.customerId === session.customerId).length
     : 0;
   const unreadN = notifications.filter((n) => !n.read).length;
-
-  function handleLogout() {
-    confirmLogout(logout, () => router.push("/"));
-  }
 
   return (
     <header className="sticky top-0 z-40 border-b border-white/10 bg-[#0b0c0e]/90 backdrop-blur-md">
@@ -113,15 +102,16 @@ export function SiteHeader({ variant = "public" }: { variant?: "public" | "panel
                     <Shield className="size-3.5" />
                     Profil
                   </Link>
-                  <button
+                  <Button
                     type="button"
-                    onClick={handleLogout}
-                    className={cn(buttonVariants({ variant: "ghost", size: "sm" }))}
-                    aria-label="Çıkış yap"
+                    variant="outline"
+                    size="sm"
+                    data-testid="header-logout"
+                    onClick={() => setLogoutOpen(true)}
                   >
                     <LogOut className="size-3.5" />
-                    <span className="hidden md:inline">Çıkış</span>
-                  </button>
+                    Çıkış
+                  </Button>
                 </div>
               ) : (
                 <Link href="/giris" className={cn(buttonVariants({ variant: "outline", size: "sm" }))}>
@@ -162,8 +152,9 @@ export function SiteHeader({ variant = "public" }: { variant?: "public" | "panel
                         </Link>
                         <button
                           type="button"
+                          data-testid="menu-logout"
                           className="rounded-md px-3 py-2 text-left text-sm text-red-300 hover:bg-white/5"
-                          onClick={handleLogout}
+                          onClick={() => setLogoutOpen(true)}
                         >
                           Çıkış yap
                         </button>
@@ -176,6 +167,7 @@ export function SiteHeader({ variant = "public" }: { variant?: "public" | "panel
                   </div>
                 </SheetContent>
               </Sheet>
+              <LogoutConfirmDialog open={logoutOpen} onOpenChange={setLogoutOpen} />
             </>
           )}
           {variant === "panel" && (

@@ -5,6 +5,7 @@ import Link from "next/link";
 import { useRouter, useSearchParams } from "next/navigation";
 import { toast } from "sonner";
 import { CustomerCard, CustomerPanel } from "@/components/customer-panel";
+import { LogoutConfirmDialog } from "@/components/logout-confirm";
 import { LoadingBlock } from "@/components/site-header";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -20,7 +21,7 @@ function safeNext(raw: string | null) {
 }
 
 function LoginInner() {
-  const { loginCustomer, registerCustomer, session, logout, customers } = useStore();
+  const { loginCustomer, registerCustomer, session, customers } = useStore();
   const router = useRouter();
   const params = useSearchParams();
   const next = safeNext(params.get("next"));
@@ -33,6 +34,7 @@ function LoginInner() {
   const [regPassword2, setRegPassword2] = useState("");
   const [plate, setPlate] = useState("");
   const [vehicle, setVehicle] = useState("");
+  const [logoutOpen, setLogoutOpen] = useState(false);
 
   function goIn() {
     router.push(next);
@@ -48,14 +50,11 @@ function LoginInner() {
           <Button className="h-11" onClick={goIn}>
             Panele git
           </Button>
-          <Button className="h-11" variant="outline" onClick={() => {
-            if (!window.confirm("Çıkış yapmak istediğinize emin misiniz?")) return;
-            logout();
-            router.push("/");
-          }}>
+          <Button className="h-11" variant="outline" onClick={() => setLogoutOpen(true)}>
             Çıkış
           </Button>
         </div>
+        <LogoutConfirmDialog open={logoutOpen} onOpenChange={setLogoutOpen} />
       </CustomerCard>
     );
   }
