@@ -1,8 +1,10 @@
 "use client";
 
-import { useMemo, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import { useRouter, useSearchParams } from "next/navigation";
 import { toast } from "sonner";
+import Link from "next/link";
+import { ProfileVehicleFields, useMe } from "@/components/customer-panel";
 import { PublicShell } from "@/components/public-shell";
 import { LoadingBlock } from "@/components/site-header";
 import { Button } from "@/components/ui/button";
@@ -22,6 +24,8 @@ function Form() {
   const params = useSearchParams();
   const preset = params?.get("hizmet") ?? "ic-dis-yikama";
   const { ready, session, createAppointment, appointments, cms, redeemCoupon } = useStore();
+  const me = useMe();
+  const loggedIn = Boolean(me);
   const bookable = cms.services.filter((s) => s.active && s.category !== "yol-yardim");
   const formDef = cms.forms.find((f) => f.id === "form-randevu");
   const fieldOn = (key: string) => !formDef || (formDef.enabled && (formDef.fields.find((f) => f.key === key)?.enabled ?? true));
@@ -29,17 +33,28 @@ function Form() {
   const fieldLabel = (key: string, fallback: string) => formDef?.fields.find((f) => f.key === key)?.label || fallback;
   const router = useRouter();
   const [serviceId, setServiceId] = useState(bookable.some((s) => s.id === preset) ? preset : bookable[0]?.id || "ic-dis-yikama");
-  const [name, setName] = useState(session.name !== "Misafir" ? session.name : "Demo Müşteri");
-  const [phone, setPhone] = useState("05551234567");
-  const [email, setEmail] = useState("demo@elitdetailing.com");
-  const [plate, setPlate] = useState("06 ELT 01");
-  const [vehicle, setVehicle] = useState("2021 BMW 5.20i");
+  const [name, setName] = useState(me?.name || (session.name !== "Misafir" ? session.name : ""));
+  const [phone, setPhone] = useState(me?.phone || "");
+  const [email, setEmail] = useState(me?.email || "");
+  const [plate, setPlate] = useState(me?.plate || "");
+  const [vehicle, setVehicle] = useState(me?.vehicle || "");
+  const [vehicleId, setVehicleId] = useState(me?.activeVehicleId || "");
   const [date, setDate] = useState(todayISO());
   const [time, setTime] = useState("16:30");
   const [notes, setNotes] = useState("");
   const [couponCode, setCouponCode] = useState("");
   const [error, setError] = useState("");
   const [pending, setPending] = useState(false);
+
+  useEffect(() => {
+    if (!me) return;
+    setName(me.name);
+    setPhone(me.phone);
+    setEmail(me.email || "");
+    setPlate(me.plate);
+    setVehicle(me.vehicle);
+    setVehicleId(me.activeVehicleId || me.vehicles[0]?.id || "");
+  }, [me]);
 
   const svc = useMemo(() => cms.services.find((s) => s.id === serviceId) || SERVICES.find((s) => s.id === serviceId), [cms.services, serviceId]);
   const discovery = Boolean(svc && "discovery" in svc ? svc.discovery : svc?.id === "boya-koruma");
@@ -159,41 +174,43 @@ function Form() {
             ))}
           </select>
         </div>
+        {!loggedIn ? (
+          <p className="rounded-lg border border-amber-500/20 bg-amber-500/5 px-3 py-2 text-[14px] text-[#f0e6c8]/75">
+            Kayıtlı müşteri misiniz?{" "}
+            <Link href="/giris?next=/randevu" className="text-amber-300 hover:underline">
+              Giriş yapın
+            </Link>{" "}
+            — bilgilerinizi bir daha yazmazsınız.
+          </p>
+        ) : null}
+        <ProfileVehicleFields
+          vehicleId={vehicleId}
+          onVehicleChange={(id, p, label) => {
+            setVehicleId(id);
+            setPlate(p);
+            setVehicle(label);
+          }}
+          showGuestFields={!loggedIn}
+          name={name}
+          phone={phone}
+          plate={plate}
+          vehicle={vehicle}
+          onName={setName}
+          onPhone={setPhone}
+          onPlate={setPlate}
+          onVehicle={setVehicle}
+        />
         <div className="grid gap-4 sm:grid-cols-2">
-          {fieldOn("name") ? (
-          <div className="grid gap-2">
-            <Label htmlFor="name">{fieldLabel("name", "Ad soyad")}</Label>
-            <Input id="name" value={name} onChange={(e) => setName(e.target.value)} required={fieldReq("name")} />
-          </div>
-          ) : null}
-          {fieldOn("phone") ? (
-          <div className="grid gap-2">
-            <Label htmlFor="phone">{fieldLabel("phone", "Telefon")}</Label>
-            <Input id="phone" value={phone} onChange={(e) => setPhone(e.target.value)} inputMode="tel" required={fieldReq("phone")} />
-          </div>
-          ) : null}
-          {fieldOn("email") ? (
+          {fieldOn("email") && !loggedIn ? (
           <div className="grid gap-2">
             <Label htmlFor="email">{fieldLabel("email", "E-posta")}</Label>
-            <Input id="email" type="email" value={email} onChange={(e) => setEmail(e.target.value)} required={fieldReq("email")} />
-          </div>
-          ) : null}
-          {fieldOn("plate") ? (
-          <div className="grid gap-2">
-            <Label htmlFor="plate">{fieldLabel("plate", "Plaka")}</Label>
-            <Input id="plate" className="plate" value={plate} onChange={(e) => setPlate(e.target.value)} required={fieldReq("plate")} />
-          </div>
-          ) : null}
-          {fieldOn("vehicle") ? (
-          <div className="grid gap-2">
-            <Label htmlFor="vehicle">{fieldLabel("vehicle", "Araç")}</Label>
-            <Input id="vehicle" value={vehicle} onChange={(e) => setVehicle(e.target.value)} />
+            <Input id="email" type="email" value={email} onChange={(e) => setEmail(e.target.value)} required={fieldReq("email")} className="h-11 text-base" />
           </div>
           ) : null}
           {fieldOn("date") ? (
           <div className="grid gap-2">
             <Label htmlFor="date">{fieldLabel("date", "Tarih")}</Label>
-            <Input id="date" type="date" min={todayISO()} max={addDaysISO(14)} value={date} onChange={(e) => setDate(e.target.value)} required={fieldReq("date")} />
+            <Input id="date" type="date" min={todayISO()} max={addDaysISO(14)} value={date} onChange={(e) => setDate(e.target.value)} required={fieldReq("date")} className="h-11 text-base" />
           </div>
           ) : null}
           {fieldOn("time") ? (
@@ -201,7 +218,7 @@ function Form() {
             <Label htmlFor="time">{fieldLabel("time", "Saat")}</Label>
             <select
               id="time"
-              className="h-9 w-full rounded-lg border border-input bg-input/30 px-2.5 text-sm"
+              className="h-11 w-full rounded-lg border border-input bg-input/30 px-2.5 text-[15px]"
               value={time}
               onChange={(e) => setTime(e.target.value)}
             >

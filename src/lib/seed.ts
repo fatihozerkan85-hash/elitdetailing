@@ -1,46 +1,52 @@
 import { ACCESSORIES, SERVICES } from "./catalog";
 import { minutesAgo, todayISO } from "./format";
-import { cloneAccessories } from "./ops";
+import { cloneAccessories, hydrateCustomer } from "./ops";
 import { segmentsFor } from "./process";
 import { buildDefaultCms } from "./site-cms";
 import type { AppState, Customer, Job, Technician } from "./types";
 
 const customers: Customer[] = [
-  {
+  hydrateCustomer({
     id: "c-demo",
     name: "Demo Müşteri",
     phone: "05551234567",
+    email: "demo@elitdetailing.com",
     plate: "06 ELT 01",
     vehicle: "2021 BMW 5.20i",
-  },
-  {
+    vehicles: [
+      { id: "vh-demo-1", plate: "06 ELT 01", label: "2021 BMW 5.20i" },
+      { id: "vh-demo-2", plate: "06 ELT 02", label: "2018 Audi A4" },
+    ],
+    activeVehicleId: "vh-demo-1",
+  }),
+  hydrateCustomer({
     id: "c-ayse",
     name: "Ayşe Kaya",
     phone: "05321220011",
     plate: "06 AYK 142",
     vehicle: "2019 Renault Megane",
-  },
-  {
+  }),
+  hydrateCustomer({
     id: "c-cem",
     name: "Cem Yıldız",
     phone: "05423334455",
     plate: "06 CM 908",
     vehicle: "2022 Toyota Corolla",
-  },
-  {
+  }),
+  hydrateCustomer({
     id: "c-burcu",
     name: "Burcu Şen",
     phone: "05076667788",
     plate: "06 BRC 77",
     vehicle: "2018 BMW 3.20",
-  },
-  {
+  }),
+  hydrateCustomer({
     id: "c-oguz",
     name: "Oğuz Demir",
     phone: "05309876543",
     plate: "06 OGZ 330",
     vehicle: "2020 Ford Transit",
-  },
+  }),
 ];
 
 const technicians: Technician[] = [

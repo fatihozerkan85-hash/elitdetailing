@@ -1,39 +1,106 @@
 import { uid } from "./format";
-import type { Accessory, Coupon, Customer, Service } from "./types";
+import type { Accessory, Coupon, Customer, Service, Vehicle } from "./types";
 
 export function normalizePhone(phone: string) {
   return phone.replace(/\D/g, "");
 }
 
+export function makeVehicle(plate: string, label: string, id?: string): Vehicle {
+  return {
+    id: id || uid("vh").toLowerCase(),
+    plate: plate.toUpperCase().trim() || "—",
+    label: label.trim() || "Araç",
+  };
+}
+
+export function hydrateCustomer(raw: Partial<Customer> & { id: string; name: string; phone: string }): Customer {
+  const plate = (raw.plate || "").toUpperCase().trim() || "—";
+  const vehicle = raw.vehicle?.trim() || "—";
+  let vehicles = Array.isArray(raw.vehicles) ? raw.vehicles.map((v) => ({
+    id: v.id || uid("vh").toLowerCase(),
+    plate: (v.plate || "").toUpperCase().trim() || "—",
+    label: v.label?.trim() || "Araç",
+  })) : [];
+  if (!vehicles.length && (plate !== "—" || vehicle !== "—")) {
+    vehicles = [makeVehicle(plate, vehicle, `vh-${raw.id}`)];
+  }
+  const activeVehicleId =
+    (raw.activeVehicleId && vehicles.some((v) => v.id === raw.activeVehicleId) && raw.activeVehicleId) ||
+    vehicles[0]?.id;
+  const active = vehicles.find((v) => v.id === activeVehicleId) || vehicles[0];
+  return {
+    id: raw.id,
+    name: raw.name,
+    phone: raw.phone,
+    email: raw.email,
+    plate: active?.plate || plate,
+    vehicle: active?.label || vehicle,
+    vehicles,
+    activeVehicleId: active?.id,
+  };
+}
+
+export function withActiveVehicle(customer: Customer, vehicleId: string): Customer {
+  const active = customer.vehicles.find((v) => v.id === vehicleId) || customer.vehicles[0];
+  if (!active) return customer;
+  return {
+    ...customer,
+    activeVehicleId: active.id,
+    plate: active.plate,
+    vehicle: active.label,
+  };
+}
+
 export function upsertCustomer(
   customers: Customer[],
-  input: { name: string; phone: string; plate: string; vehicle: string },
+  input: { name: string; phone: string; plate: string; vehicle: string; email?: string },
 ): { customers: Customer[]; customer: Customer } {
   const digits = normalizePhone(input.phone);
   const plate = input.plate.toUpperCase().trim();
-  const existing = customers.find(
-    (c) => normalizePhone(c.phone) === digits || (plate && c.plate.toUpperCase() === plate),
-  );
+  const existing = customers.find((c) => normalizePhone(c.phone) === digits);
   if (existing) {
-    const customer: Customer = {
+    let vehicles = existing.vehicles?.length
+      ? [...existing.vehicles]
+      : hydrateCustomer(existing).vehicles;
+    if (plate && plate !== "—") {
+      const hit = vehicles.find((v) => v.plate.toUpperCase() === plate);
+      if (hit) {
+        vehicles = vehicles.map((v) =>
+          v.id === hit.id ? { ...v, label: input.vehicle.trim() || v.label } : v,
+        );
+      } else {
+        vehicles = [makeVehicle(plate, input.vehicle || "Araç"), ...vehicles];
+      }
+    }
+    let customer = hydrateCustomer({
       ...existing,
       name: input.name.trim() || existing.name,
       phone: input.phone.trim() || existing.phone,
+      email: input.email ?? existing.email,
+      vehicles,
       plate: plate || existing.plate,
       vehicle: input.vehicle.trim() || existing.vehicle,
-    };
+    });
+    if (plate) {
+      const match = customer.vehicles.find((v) => v.plate === plate);
+      if (match) customer = withActiveVehicle(customer, match.id);
+    }
     return {
       customers: customers.map((c) => (c.id === existing.id ? customer : c)),
       customer,
     };
   }
-  const customer: Customer = {
+  const first = makeVehicle(plate || "—", input.vehicle.trim() || "Araç");
+  const customer = hydrateCustomer({
     id: uid("c").toLowerCase(),
     name: input.name.trim() || "Müşteri",
     phone: input.phone.trim(),
-    plate: plate || "—",
-    vehicle: input.vehicle.trim() || "—",
-  };
+    email: input.email,
+    plate: first.plate,
+    vehicle: first.label,
+    vehicles: [first],
+    activeVehicleId: first.id,
+  });
   return { customers: [customer, ...customers], customer };
 }
 

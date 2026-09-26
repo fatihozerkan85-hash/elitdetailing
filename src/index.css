@@ -119,3 +119,86 @@ select option:disabled {
   color: #6b7280 !important;
   background-color: #ffffff !important;
 }
+
+/* Customer panel — readable UI type on brand palette */
+.customer-panel {
+  font-family: 'Raleway', 'Barlow', sans-serif;
+  color: rgba(240, 230, 200, 0.92);
+  font-size: 16px;
+  line-height: 1.55;
+  -webkit-font-smoothing: antialiased;
+}
+
+.customer-kicker {
+  font-family: 'Raleway', sans-serif;
+  font-size: 11px;
+  font-weight: 600;
+  letter-spacing: 0.28em;
+  text-transform: uppercase;
+  color: rgba(201, 168, 76, 0.65);
+  margin: 0 0 10px;
+}
+
+.customer-title {
+  font-family: 'Barlow Condensed', 'Barlow', sans-serif;
+  font-size: clamp(1.85rem, 5vw, 2.35rem);
+  font-weight: 700;
+  letter-spacing: 0.04em;
+  text-transform: uppercase;
+  color: #f0e6c8;
+  line-height: 1.1;
+  margin: 0;
+}
+
+.customer-lead {
+  margin: 10px 0 0;
+  font-size: 15px;
+  line-height: 1.55;
+  color: rgba(240, 230, 200, 0.62);
+  max-width: 36rem;
+}
+
+.customer-card {
+  border-radius: 1rem;
+  border: 1px solid rgba(255, 255, 255, 0.1);
+  background: linear-gradient(160deg, rgba(26, 26, 26, 0.95), rgba(12, 12, 12, 0.92));
+  padding: 1.1rem 1.15rem;
+}
+
+.customer-section-label {
+  font-family: 'Raleway', sans-serif;
+  font-size: 12px;
+  font-weight: 600;
+  letter-spacing: 0.16em;
+  text-transform: uppercase;
+  color: rgba(201, 168, 76, 0.85);
+  margin: 0;
+}
+
+.customer-nav-link {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 0.75rem;
+  border-radius: 0.9rem;
+  border: 1px solid rgba(255, 255, 255, 0.1);
+  background: rgba(17, 17, 17, 0.7);
+  padding: 0.95rem 1.05rem;
+  text-decoration: none;
+  color: #f0e6c8;
+  font-size: 15.5px;
+  font-weight: 500;
+  transition: border-color 0.2s ease, background 0.2s ease;
+}
+
+.customer-nav-link:hover {
+  border-color: rgba(201, 168, 76, 0.4);
+  background: rgba(201, 168, 76, 0.06);
+}
+
+.customer-nav-link span.hint {
+  font-size: 13px;
+  font-weight: 400;
+  color: rgba(240, 230, 200, 0.45);
+}
+

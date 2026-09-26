@@ -1,13 +1,15 @@
 "use client";
 
 import Link from "next/link";
-import { PublicShell } from "@/components/public-shell";
+import { CustomerCard, CustomerPanel, useMe } from "@/components/customer-panel";
 import { EmptyState } from "@/components/site-header";
 import { Button } from "@/components/ui/button";
 import { useStore } from "@/lib/store";
 
 export default function BildirimlerPage() {
-  const { notifications, markAllNotificationsRead, campaignNotif, couponNotif, setNotifPrefs } = useStore();
+  const { notifications, markAllNotificationsRead, campaignNotif, couponNotif, setNotifPrefs, session } =
+    useStore();
+  const me = useMe();
   const mine = notifications.filter(
     (n) =>
       n.audience === "customer" ||
@@ -16,52 +18,71 @@ export default function BildirimlerPage() {
   );
 
   return (
-    <PublicShell>
-      <div className="mx-auto max-w-3xl px-4 py-8 sm:py-12">
-        <div className="flex items-center justify-between gap-3">
-          <h1 className="font-[family-name:var(--font-display)] text-3xl uppercase">Bildirimler</h1>
-          <Button size="sm" variant="outline" onClick={markAllNotificationsRead}>
-            Tümünü oku
-          </Button>
-        </div>
-        <div className="mt-4 flex flex-col gap-3 rounded-xl border border-white/10 p-4 text-sm sm:flex-row sm:items-center sm:justify-between">
-          <label className="flex items-center gap-2">
-            <input
-              type="checkbox"
-              checked={campaignNotif}
-              onChange={(e) => setNotifPrefs({ campaignNotif: e.target.checked })}
-            />
-            Kampanya bildirimleri
-          </label>
-          <label className="flex items-center gap-2">
-            <input
-              type="checkbox"
-              checked={couponNotif}
-              onChange={(e) => setNotifPrefs({ couponNotif: e.target.checked })}
-            />
-            Kupon hatırlatma
-          </label>
-        </div>
-        <div className="mt-6 space-y-2">
-          {mine.length === 0 ? (
-            <EmptyState title="Bildirim yok" hint="Kampanya, kupon ve iş durumları burada görünür." />
-          ) : (
-            mine.map((n) => (
-              <Link
-                key={n.id}
-                href={n.href}
-                className="block rounded-xl border border-white/10 bg-zinc-900/50 p-4 hover:border-amber-400/30"
-              >
-                <p className="text-sm font-medium text-zinc-100">
-                  {!n.read ? <span className="mr-2 inline-block size-1.5 rounded-full bg-amber-400" /> : null}
-                  {n.title}
-                </p>
-                <p className="mt-1 text-sm text-zinc-500">{n.body}</p>
-              </Link>
-            ))
-          )}
-        </div>
+    <CustomerPanel
+      title="Bildirimler"
+      lead="Kampanya, kupon ve iş güncellemeleri — kısa ve net."
+      className="sm:max-w-2xl"
+    >
+      {session.role !== "customer" ? (
+        <CustomerCard>
+          <p className="text-[15px] text-[#f0e6c8]/7">Kişisel bildirimler için giriş yapın.</p>
+          <Link href="/giris?next=/bildirimler">
+            <Button className="mt-4 h-11">Giriş yap</Button>
+          </Link>
+        </CustomerCard>
+      ) : null}
+
+      <div className="flex items-center justify-between gap-3">
+        <p className="text-[14px] text-[#f0e6c8]/5">{mine.length} bildirim</p>
+        <Button size="sm" variant="outline" onClick={markAllNotificationsRead}>
+          Tümünü oku
+        </Button>
       </div>
-    </PublicShell>
+
+      <CustomerCard>
+        <p className="customer-section-label">Tercihler</p>
+        <label className="mt-3 flex items-center justify-between gap-3 text-[15px]">
+          Kampanya bildirimleri
+          <input
+            type="checkbox"
+            className="size-4 accent-amber-400"
+            checked={campaignNotif}
+            onChange={(e) => setNotifPrefs({ campaignNotif: e.target.checked })}
+          />
+        </label>
+        <label className="mt-3 flex items-center justify-between gap-3 text-[15px]">
+          Kupon hatırlatma
+          <input
+            type="checkbox"
+            className="size-4 accent-amber-400"
+            checked={couponNotif}
+            onChange={(e) => setNotifPrefs({ couponNotif: e.target.checked })}
+          />
+        </label>
+      </CustomerCard>
+
+      <div className="space-y-2">
+        {mine.length === 0 ? (
+          <EmptyState title="Bildirim yok" hint="Kampanya veya iş durumu olunca burada görünür." />
+        ) : (
+          mine.map((n) => (
+            <Link key={n.id} href={n.href} className="customer-nav-link !items-start !flex-col">
+              <span className="flex items-center gap-2 text-[16px] font-medium">
+                {!n.read ? <span className="inline-block size-1.5 rounded-full bg-amber-400" /> : null}
+                {n.title}
+              </span>
+              <span className="hint !text-[14px] leading-relaxed">{n.body}</span>
+            </Link>
+          ))
+        )}
+      </div>
+
+      {me ? (
+        <Link href="/profil" className="customer-nav-link">
+          <span>Profilime dön</span>
+          <span className="hint">{me.name}</span>
+        </Link>
+      ) : null}
+    </CustomerPanel>
   );
 }

@@ -78,12 +78,23 @@ export type Accessory = {
   description: string;
 };
 
+export type Vehicle = {
+  id: string;
+  plate: string;
+  label: string;
+};
+
 export type Customer = {
   id: string;
   name: string;
   phone: string;
+  email?: string;
+  /** Primary plate — synced from active vehicle */
   plate: string;
+  /** Primary vehicle label — synced from active vehicle */
   vehicle: string;
+  vehicles: Vehicle[];
+  activeVehicleId?: string;
 };
 
 export type Technician = {

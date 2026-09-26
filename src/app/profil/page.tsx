@@ -1,53 +1,182 @@
 "use client";
 
 import Link from "next/link";
-import { PublicShell } from "@/components/public-shell";
+import { useRouter } from "next/navigation";
+import { useState } from "react";
+import { toast } from "sonner";
+import {
+  CustomerCard,
+  CustomerPanel,
+  VehicleManager,
+  useMe,
+} from "@/components/customer-panel";
 import { Button } from "@/components/ui/button";
+import { Input } from "@/components/ui/input";
+import { Label } from "@/components/ui/label";
 import { useStore } from "@/lib/store";
 
 export default function ProfilPage() {
-  const { session, customers, coupons, campaignNotif, couponNotif, setNotifPrefs, logout } = useStore();
-  const me = customers.find((c) => c.id === session.customerId) ?? customers[0];
-  const aktif = coupons.filter((c) => c.status === "aktif").length;
+  const me = useMe();
+  const {
+    session,
+    coupons,
+    inbox,
+    campaignNotif,
+    couponNotif,
+    setNotifPrefs,
+    updateCustomerProfile,
+    logout,
+  } = useStore();
+  const router = useRouter();
+  const [editing, setEditing] = useState(false);
+  const [name, setName] = useState(me?.name || "");
+  const [phone, setPhone] = useState(me?.phone || "");
+  const [email, setEmail] = useState(me?.email || "");
+
+  if (session.role !== "customer" || !me) {
+    return (
+      <CustomerPanel
+        title="Profil"
+        lead="Randevu ve talepleriniz için bir kez kayıt olun. Bilgileriniz sonraki işlemlerde otomatik gelir."
+      >
+        <CustomerCard>
+          <p className="text-[15px] text-[#f0e6c8]/75">
+            Henüz giriş yapmadınız. Telefonunuzla girin veya yeni hesap oluşturun.
+          </p>
+          <Button className="mt-4 h-11 w-full" onClick={() => router.push("/giris")}>
+            Giriş / kayıt
+          </Button>
+        </CustomerCard>
+      </CustomerPanel>
+    );
+  }
+
+  const aktifKupon = coupons.filter((c) => c.customerId === me.id && c.status === "aktif").length;
+  const unread = inbox.filter((i) => i.customerId === me.id && i.unread).length;
 
   return (
-    <PublicShell>
-      <div className="mx-auto max-w-lg px-4 py-8 sm:py-12">
-        <h1 className="font-[family-name:var(--font-display)] text-3xl uppercase">Profil</h1>
-        <div className="mt-6 rounded-2xl border border-white/10 bg-zinc-900/50 p-5">
-          <p className="text-lg text-zinc-100">{session.name === "Misafir" ? me.name : session.name}</p>
-          <p className="mt-1 text-sm text-zinc-500">{me.phone}</p>
-          <p className="plate mt-3 text-amber-200">{me.plate}</p>
-          <p className="text-sm text-zinc-400">{me.vehicle}</p>
-        </div>
-        <div className="mt-4 grid gap-2 text-sm">
-          <Link href="/kuponlar" className="rounded-xl border border-white/10 px-4 py-3 hover:border-amber-400/40">
-            Kuponlarım · {aktif} aktif
-          </Link>
-          <Link href="/taleplerim" className="rounded-xl border border-white/10 px-4 py-3 hover:border-amber-400/40">
-            Taleplerim
-          </Link>
-          <label className="flex items-center justify-between rounded-xl border border-white/10 px-4 py-3">
-            Kampanya bildirimi
-            <input
-              type="checkbox"
-              checked={campaignNotif}
-              onChange={(e) => setNotifPrefs({ campaignNotif: e.target.checked })}
-            />
-          </label>
-          <label className="flex items-center justify-between rounded-xl border border-white/10 px-4 py-3">
-            Kupon hatırlatma
-            <input
-              type="checkbox"
-              checked={couponNotif}
-              onChange={(e) => setNotifPrefs({ couponNotif: e.target.checked })}
-            />
-          </label>
-        </div>
-        <Button className="mt-6 w-full" variant="outline" onClick={logout}>
-          Çıkış
-        </Button>
+    <CustomerPanel
+      title={me.name.split(" ")[0] || "Profil"}
+      lead="Bilgileriniz kayıtlı. Yeni araç için yalnızca plaka ve model eklemeniz yeterli."
+    >
+      <CustomerCard>
+        {!editing ? (
+          <>
+            <p className="customer-section-label">Hesabım</p>
+            <p className="mt-2 text-[20px] font-medium leading-tight text-[#f0e6c8]">{me.name}</p>
+            <p className="mt-1 text-[15px] text-[#f0e6c8]/65">{me.phone}</p>
+            {me.email ? <p className="text-[14px] text-[#f0e6c8]/5">{me.email}</p> : null}
+            <Button
+              type="button"
+              variant="outline"
+              size="sm"
+              className="mt-4"
+              onClick={() => {
+                setName(me.name);
+                setPhone(me.phone);
+                setEmail(me.email || "");
+                setEditing(true);
+              }}
+            >
+              Bilgileri düzenle
+            </Button>
+          </>
+        ) : (
+          <form
+            className="grid gap-3"
+            onSubmit={(e) => {
+              e.preventDefault();
+              if (!name.trim() || !phone.trim()) {
+                toast.error("Ad ve telefon zorunlu");
+                return;
+              }
+              updateCustomerProfile({ name, phone, email });
+              toast.success("Profil güncellendi");
+              setEditing(false);
+            }}
+          >
+            <p className="customer-section-label">Bilgileri düzenle</p>
+            <div className="grid gap-1.5">
+              <Label className="text-[13px]">Ad soyad</Label>
+              <Input className="h-11 text-base" value={name} onChange={(e) => setName(e.target.value)} />
+            </div>
+            <div className="grid gap-1.5">
+              <Label className="text-[13px]">Telefon</Label>
+              <Input className="h-11 text-base" value={phone} onChange={(e) => setPhone(e.target.value)} />
+            </div>
+            <div className="grid gap-1.5">
+              <Label className="text-[13px]">E-posta</Label>
+              <Input className="h-11 text-base" type="email" value={email} onChange={(e) => setEmail(e.target.value)} />
+            </div>
+            <div className="flex gap-2">
+              <Button type="submit" className="h-11 flex-1">
+                Kaydet
+              </Button>
+              <Button type="button" variant="outline" className="h-11" onClick={() => setEditing(false)}>
+                Vazgeç
+              </Button>
+            </div>
+          </form>
+        )}
+      </CustomerCard>
+
+      <VehicleManager me={me} />
+
+      <div className="grid gap-2">
+        <Link href="/taleplerim" className="customer-nav-link">
+          <span>Taleplerim</span>
+          <span className="hint">{unread > 0 ? `${unread} yeni` : "Mesajlar"}</span>
+        </Link>
+        <Link href="/takip" className="customer-nav-link">
+          <span>İş takibi</span>
+          <span className="hint">Canlı durum</span>
+        </Link>
+        <Link href="/kuponlar" className="customer-nav-link">
+          <span>Kuponlarım</span>
+          <span className="hint">{aktifKupon} aktif</span>
+        </Link>
+        <Link href="/randevu" className="customer-nav-link">
+          <span>Yeni randevu</span>
+          <span className="hint">Kayıtlı araçla</span>
+        </Link>
+        <Link href="/bildirimler" className="customer-nav-link">
+          <span>Bildirimler</span>
+          <span className="hint">Kampanya & kupon</span>
+        </Link>
       </div>
-    </PublicShell>
+
+      <CustomerCard>
+        <p className="customer-section-label">Bildirim tercihleri</p>
+        <label className="mt-3 flex items-center justify-between gap-3 text-[15px]">
+          Kampanya bildirimleri
+          <input
+            type="checkbox"
+            className="size-4 accent-amber-400"
+            checked={campaignNotif}
+            onChange={(e) => setNotifPrefs({ campaignNotif: e.target.checked })}
+          />
+        </label>
+        <label className="mt-3 flex items-center justify-between gap-3 text-[15px]">
+          Kupon hatırlatma
+          <input
+            type="checkbox"
+            className="size-4 accent-amber-400"
+            checked={couponNotif}
+            onChange={(e) => setNotifPrefs({ couponNotif: e.target.checked })}
+          />
+        </label>
+      </CustomerCard>
+
+      <Button
+        className="h-11 w-full"
+        variant="outline"
+        onClick={() => {
+          logout();
+          router.push("/");
+        }}
+      >
+        Çıkış yap
+      </Button>
+    </CustomerPanel>
   );
 }

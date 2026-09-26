@@ -11,7 +11,7 @@ import {
 } from "react";
 import { ACCESSORIES, DEMO, JOB_STATUS_LABEL, ORDER_STATUS_LABEL, ROADSIDE_STATUS_LABEL, SERVICES } from "./catalog";
 import { uid } from "./format";
-import { cloneAccessories, couponOffAmount, inferDiscountPercent, upsertCustomer } from "./ops";
+import { cloneAccessories, couponOffAmount, hydrateCustomer, inferDiscountPercent, makeVehicle, upsertCustomer, withActiveVehicle } from "./ops";
 import { jobClock, hydrateJob, segmentsFor } from "./process";
 import { buildSeed } from "./seed";
 import { buildDefaultCms, type SiteCms } from "./site-cms";
@@ -33,6 +33,7 @@ import type {
   RoadsideStatus,
   Session,
   Technician,
+  Vehicle,
 } from "./types";
 
 const KEY = "elit-detailing-v4";
@@ -52,6 +53,17 @@ type PaidCheckoutInput = {
 type Store = AppState & {
   ready: boolean;
   loginCustomer: (phone: string) => boolean;
+  registerCustomer: (input: {
+    name: string;
+    phone: string;
+    email?: string;
+    plate: string;
+    vehicle: string;
+  }) => Customer;
+  updateCustomerProfile: (input: { name?: string; phone?: string; email?: string }) => void;
+  addVehicle: (input: { plate: string; label: string }) => Vehicle | null;
+  removeVehicle: (vehicleId: string) => void;
+  setActiveVehicle: (vehicleId: string) => void;
   loginOwner: (pin: string) => boolean;
   logout: () => void;
   reset: () => void;
@@ -220,6 +232,7 @@ export function StoreProvider({ children }: { children: ReactNode }) {
             const merged: AppState = {
               ...seed,
               ...parsed,
+              customers: (parsed.customers ?? seed.customers).map((c) => hydrateCustomer(c)),
               jobs: (parsed.jobs ?? seed.jobs).map((j) =>
                 hydrateJob({
                   ...(j as Job),
@@ -272,20 +285,117 @@ export function StoreProvider({ children }: { children: ReactNode }) {
 
   const loginCustomer = useCallback((phone: string) => {
     const digits = phone.replace(/\D/g, "");
+    let ok = false;
     setState((s) => {
-      const found = s.customers.find((c) => c.phone.replace(/\D/g, "") === digits);
-      const session: Session = found
-        ? { role: "customer", customerId: found.id, name: found.name }
-        : {
-            role: "customer",
-            customerId: "c-demo",
-            name: DEMO.customerName,
-          };
-      const next = { ...s, session };
-      persist(next);
-      return next;
+      const found = s.customers.map(hydrateCustomer).find((c) => c.phone.replace(/\D/g, "") === digits);
+      if (!found) return s;
+      ok = true;
+      const session: Session = { role: "customer", customerId: found.id, name: found.name };
+      return { ...s, session, customers: s.customers.map((c) => (c.id === found.id ? found : hydrateCustomer(c))) };
     });
-    return true;
+    return ok;
+  }, []);
+
+  const registerCustomer = useCallback<Store["registerCustomer"]>((input) => {
+    let created!: Customer;
+    setState((s) => {
+      const { customers, customer } = upsertCustomer(s.customers.map(hydrateCustomer), {
+        name: input.name,
+        phone: input.phone,
+        email: input.email,
+        plate: input.plate,
+        vehicle: input.vehicle,
+      });
+      created = customer;
+      return {
+        ...s,
+        customers,
+        session: { role: "customer" as const, customerId: customer.id, name: customer.name },
+      };
+    });
+    return created;
+  }, []);
+
+  const updateCustomerProfile = useCallback<Store["updateCustomerProfile"]>((input) => {
+    setState((s) => {
+      if (!s.session.customerId) return s;
+      return {
+        ...s,
+        customers: s.customers.map((c) => {
+          if (c.id !== s.session.customerId) return c;
+          const next = hydrateCustomer({
+            ...c,
+            name: input.name?.trim() || c.name,
+            phone: input.phone?.trim() || c.phone,
+            email: input.email !== undefined ? input.email : c.email,
+          });
+          return next;
+        }),
+        session: {
+          ...s.session,
+          name: input.name?.trim() || s.session.name,
+        },
+      };
+    });
+  }, []);
+
+  const addVehicle = useCallback<Store["addVehicle"]>((input) => {
+    let added: Vehicle | null = null;
+    setState((s) => {
+      if (!s.session.customerId) return s;
+      const plate = input.plate.toUpperCase().trim();
+      if (!plate) return s;
+      return {
+        ...s,
+        customers: s.customers.map((c) => {
+          if (c.id !== s.session.customerId) return c;
+          const base = hydrateCustomer(c);
+          if (base.vehicles.some((v) => v.plate === plate)) {
+            const existing = base.vehicles.find((v) => v.plate === plate)!;
+            added = existing;
+            return withActiveVehicle(base, existing.id);
+          }
+          const v = makeVehicle(plate, input.label);
+          added = v;
+          return withActiveVehicle(
+            { ...base, vehicles: [v, ...base.vehicles] },
+            v.id,
+          );
+        }),
+      };
+    });
+    return added;
+  }, []);
+
+  const removeVehicle = useCallback((vehicleId: string) => {
+    setState((s) => {
+      if (!s.session.customerId) return s;
+      return {
+        ...s,
+        customers: s.customers.map((c) => {
+          if (c.id !== s.session.customerId) return c;
+          const base = hydrateCustomer(c);
+          if (base.vehicles.length <= 1) return base;
+          const vehicles = base.vehicles.filter((v) => v.id !== vehicleId);
+          const next = { ...base, vehicles };
+          const keep =
+            base.activeVehicleId === vehicleId ? vehicles[0]!.id : base.activeVehicleId || vehicles[0]!.id;
+          return withActiveVehicle(next, keep);
+        }),
+      };
+    });
+  }, []);
+
+  const setActiveVehicle = useCallback((vehicleId: string) => {
+    setState((s) => {
+      if (!s.session.customerId) return s;
+      return {
+        ...s,
+        customers: s.customers.map((c) =>
+          c.id === s.session.customerId ? withActiveVehicle(hydrateCustomer(c), vehicleId) : c,
+        ),
+      };
+    });
   }, []);
 
   const loginOwner = useCallback((pin: string) => {
@@ -1228,21 +1338,31 @@ export function StoreProvider({ children }: { children: ReactNode }) {
     let saved!: Customer;
     setState((s) => {
       if (input.id) {
-        const customers = s.customers.map((c) =>
-          c.id === input.id
-            ? {
-                ...c,
-                name: input.name,
-                phone: input.phone,
-                plate: (input.plate ?? c.plate).toUpperCase(),
-                vehicle: input.vehicle ?? c.vehicle,
-              }
-            : c,
-        );
+        const customers = s.customers.map((c) => {
+          if (c.id !== input.id) return c;
+          const base = hydrateCustomer(c);
+          const plate = (input.plate ?? base.plate).toUpperCase();
+          const label = input.vehicle ?? base.vehicle;
+          let vehicles = base.vehicles;
+          if (plate && plate !== "—") {
+            const hit = vehicles.find((v) => v.plate === plate);
+            vehicles = hit
+              ? vehicles.map((v) => (v.id === hit.id ? { ...v, label } : v))
+              : [makeVehicle(plate, label), ...vehicles];
+          }
+          return hydrateCustomer({
+            ...base,
+            name: input.name,
+            phone: input.phone,
+            plate,
+            vehicle: label,
+            vehicles,
+          });
+        });
         saved = customers.find((c) => c.id === input.id)!;
         return { ...s, customers };
       }
-      const next = upsertCustomer(s.customers, {
+      const next = upsertCustomer(s.customers.map(hydrateCustomer), {
         name: input.name,
         phone: input.phone,
         plate: input.plate || "",
@@ -1428,6 +1548,11 @@ export function StoreProvider({ children }: { children: ReactNode }) {
       ...state,
       ready,
       loginCustomer,
+      registerCustomer,
+      updateCustomerProfile,
+      addVehicle,
+      removeVehicle,
+      setActiveVehicle,
       loginOwner,
       logout,
       reset,
@@ -1472,6 +1597,11 @@ export function StoreProvider({ children }: { children: ReactNode }) {
       state,
       ready,
       loginCustomer,
+      registerCustomer,
+      updateCustomerProfile,
+      addVehicle,
+      removeVehicle,
+      setActiveVehicle,
       loginOwner,
       logout,
       reset,

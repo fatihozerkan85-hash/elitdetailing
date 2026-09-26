@@ -1,12 +1,13 @@
 "use client";
 
-import { useState } from "react";
+import { useEffect, useState } from "react";
+import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { toast } from "sonner";
+import { ProfileVehicleFields, useMe } from "@/components/customer-panel";
 import { PublicShell } from "@/components/public-shell";
 import { GeoLink } from "@/components/geo-link";
 import { Button } from "@/components/ui/button";
-import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
 import { formatCoords } from "@/lib/format";
@@ -17,7 +18,9 @@ import type { Urgency } from "@/lib/types";
 type GeoState = "idle" | "loading" | "ok" | "denied" | "unsupported";
 
 export default function YolYardimPage() {
-  const { createRoadside, session, cms } = useStore();
+  const { createRoadside, cms } = useStore();
+  const me = useMe();
+  const loggedIn = Boolean(me);
   const formDef = cms.forms.find((f) => f.id === "form-yol");
   const fieldOn = (key: string) =>
     !formDef || (formDef.enabled && (formDef.fields.find((f) => f.key === key)?.enabled ?? true));
@@ -26,16 +29,26 @@ export default function YolYardimPage() {
     formDef?.fields.find((f) => f.key === key)?.label || fallback;
   const lead = textMap(cms.texts)["yol.lead"];
   const router = useRouter();
-  const [name, setName] = useState(session.name !== "Misafir" ? session.name : "Demo Müşteri");
-  const [phone, setPhone] = useState("05551234567");
-  const [plate, setPlate] = useState("06 ELT 01");
-  const [vehicle, setVehicle] = useState("2021 BMW 5.20i");
+  const [name, setName] = useState(me?.name || "");
+  const [phone, setPhone] = useState(me?.phone || "");
+  const [plate, setPlate] = useState(me?.plate || "");
+  const [vehicle, setVehicle] = useState(me?.vehicle || "");
+  const [vehicleId, setVehicleId] = useState(me?.activeVehicleId || "");
   const [location, setLocation] = useState("");
   const [issue, setIssue] = useState("Akü takviye");
   const [urgency, setUrgency] = useState<Urgency>("yuksek");
   const [error, setError] = useState("");
   const [geo, setGeo] = useState<GeoState>("idle");
   const [coords, setCoords] = useState<{ lat: number; lng: number; accuracyM?: number } | null>(null);
+
+  useEffect(() => {
+    if (!me) return;
+    setName(me.name);
+    setPhone(me.phone);
+    setPlate(me.plate);
+    setVehicle(me.vehicle);
+    setVehicleId(me.activeVehicleId || me.vehicles[0]?.id || "");
+  }, [me]);
 
   function shareLocation() {
     if (!navigator.geolocation) {
@@ -69,19 +82,9 @@ export default function YolYardimPage() {
   function submit(e: React.FormEvent) {
     e.preventDefault();
     const note = location.trim();
-    if (fieldOn("name") && fieldReq("name") && !name.trim()) {
-      setError("Ad zorunlu.");
+    if (!name.trim() || !phone.trim() || !plate.trim()) {
+      setError("Ad, telefon ve plaka zorunlu.");
       return;
-    }
-    if (fieldOn("phone") && fieldReq("phone") && !phone.trim()) {
-      setError("Telefon zorunlu.");
-      return;
-    }
-    if (fieldOn("plate") && (!plate.trim() || fieldReq("plate"))) {
-      if (!plate.trim()) {
-        setError("Plaka zorunlu.");
-        return;
-      }
     }
     if (!note && !coords) {
       setError("Konum gönderin veya konum notu yazın.");
@@ -122,53 +125,52 @@ export default function YolYardimPage() {
 
   return (
     <PublicShell>
-      <div className="mx-auto max-w-3xl px-4 py-12">
-        <p className="text-[11px] tracking-[0.3em] text-red-300 uppercase">Acil</p>
-        <h1 className="mt-2 font-[family-name:var(--font-display)] text-4xl uppercase">Yol yardım</h1>
-        <p className="mt-2 text-sm text-zinc-400">
+      <div className="customer-panel mx-auto max-w-3xl px-4 py-12">
+        <p className="customer-kicker">Acil</p>
+        <h1 className="customer-title">Yol yardım</h1>
+        <p className="customer-lead">
           {lead || "Canlı konumunuzu gönderin; cadde / kat notunu da ekleyin. Ekip panodan pin ve notu görür."}
         </p>
         <form onSubmit={submit} className="mt-8 space-y-4">
-          <div className="grid gap-4 sm:grid-cols-2">
-            {fieldOn("name") ? (
-              <div className="grid gap-2">
-                <Label>{fieldLabel("name", "Ad")}</Label>
-                <Input value={name} onChange={(e) => setName(e.target.value)} required={fieldReq("name")} />
-              </div>
-            ) : null}
-            {fieldOn("phone") ? (
-              <div className="grid gap-2">
-                <Label>{fieldLabel("phone", "Telefon")}</Label>
-                <Input value={phone} onChange={(e) => setPhone(e.target.value)} required={fieldReq("phone")} />
-              </div>
-            ) : null}
-            {fieldOn("plate") ? (
-              <div className="grid gap-2">
-                <Label>{fieldLabel("plate", "Plaka")}</Label>
-                <Input className="plate" value={plate} onChange={(e) => setPlate(e.target.value)} required />
-              </div>
-            ) : null}
-            {fieldOn("vehicle") ? (
-              <div className="grid gap-2">
-                <Label>{fieldLabel("vehicle", "Araç")}</Label>
-                <Input value={vehicle} onChange={(e) => setVehicle(e.target.value)} />
-              </div>
-            ) : null}
-          </div>
+          {!loggedIn ? (
+            <p className="rounded-lg border border-amber-500/20 bg-amber-500/5 px-3 py-2 text-[14px] text-[#f0e6c8]/75">
+              <Link href="/giris?next=/yol-yardim" className="text-amber-300 hover:underline">
+                Giriş yapın
+              </Link>{" "}
+              — ad, telefon ve plaka otomatik gelsin.
+            </p>
+          ) : null}
+          <ProfileVehicleFields
+            vehicleId={vehicleId}
+            onVehicleChange={(id, p, label) => {
+              setVehicleId(id);
+              setPlate(p);
+              setVehicle(label);
+            }}
+            showGuestFields={!loggedIn}
+            name={name}
+            phone={phone}
+            plate={plate}
+            vehicle={vehicle}
+            onName={setName}
+            onPhone={setPhone}
+            onPlate={setPlate}
+            onVehicle={setVehicle}
+          />
           {fieldOn("gps") ? (
             <div className="grid gap-2">
               <Label>Konum</Label>
               <div className="flex flex-col gap-3 rounded-xl border border-white/10 bg-zinc-900/40 p-4 sm:flex-row sm:items-center sm:justify-between">
-                <div className="min-w-0 text-sm">
+                <div className="min-w-0 text-[15px]">
                   {geo === "ok" && coords ? (
                     <>
-                      <p className="text-zinc-200">Konum alındı</p>
+                      <p className="text-[#f0e6c8]">Konum alındı</p>
                       <GeoLink lat={coords.lat} lng={coords.lng} accuracyM={coords.accuracyM} />
                     </>
                   ) : geo === "loading" ? (
-                    <p className="text-zinc-400">Konum isteniyor…</p>
+                    <p className="text-[#f0e6c8]/6">Konum isteniyor…</p>
                   ) : (
-                    <p className="text-zinc-400">Ekibin sizi haritada görmesi için konumunuzu paylaşın.</p>
+                    <p className="text-[#f0e6c8]/6">Ekibin sizi haritada görmesi için konumunuzu paylaşın.</p>
                   )}
                 </div>
                 <Button type="button" variant={geo === "ok" ? "outline" : "default"} onClick={shareLocation} disabled={geo === "loading"}>
@@ -185,6 +187,7 @@ export default function YolYardimPage() {
                 value={location}
                 onChange={(e) => setLocation(e.target.value)}
                 rows={3}
+                className="text-base"
                 required={fieldReq("location") && !coords}
               />
             </div>
@@ -193,7 +196,7 @@ export default function YolYardimPage() {
             <div className="grid gap-2">
               <Label>{fieldLabel("issue", "Sorun")}</Label>
               <select
-                className="h-9 w-full rounded-lg border border-input bg-input/30 px-2.5 text-sm"
+                className="h-11 w-full rounded-lg border border-input bg-input/30 px-2.5 text-[15px]"
                 value={issue}
                 onChange={(e) => setIssue(e.target.value)}
               >
@@ -218,7 +221,7 @@ export default function YolYardimPage() {
                 ).map(([v, l]) => (
                   <label
                     key={v}
-                    className={`cursor-pointer rounded-lg border px-3 py-2 text-sm ${urgency === v ? "border-amber-400 bg-amber-400/10" : "border-white/10"}`}
+                    className={`cursor-pointer rounded-lg border px-3 py-2.5 text-[14px] ${urgency === v ? "border-amber-400 bg-amber-400/10" : "border-white/10"}`}
                   >
                     <input type="radio" className="sr-only" checked={urgency === v} onChange={() => setUrgency(v)} />
                     {l}
@@ -227,11 +230,11 @@ export default function YolYardimPage() {
               </div>
             </fieldset>
           ) : null}
-          {error ? <p className="text-sm text-red-300">{error}</p> : null}
-          <Button type="submit" variant="destructive" size="lg">
+          {error ? <p className="text-[14px] text-red-300">{error}</p> : null}
+          <Button type="submit" variant="destructive" size="lg" className="h-12 text-[15px]">
             Yardım iste
           </Button>
-          <p className="text-xs text-zinc-600">
+          <p className="text-[13px] text-[#f0e6c8]/4">
             Trafikte güvenli alana çekin. Bu ekran 112 yerine geçmez; can kaybı / yangın için acil çağrı kullanın.
           </p>
         </form>
