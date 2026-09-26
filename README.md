@@ -52,6 +52,8 @@ Veri: `localStorage` anahtarı `elit-detailing-v4`.
 
 SMTP yoksa e-postalar mock’tur (`/api/email`). Canlı için `RESEND_API_KEY` + `EMAIL_FROM`.
 
+Adım adım: [docs/RESEND.md](docs/RESEND.md) · panel: `/yonetici/ayarlar`
+
 ## Sizin yapmanız gerekenler (canlı)
 
 Site özellikleri iyzico **hariç** mock/link ile çalışır. Gerçek gönderim ve tahsilat için Vercel → Project → Settings → Environment Variables:

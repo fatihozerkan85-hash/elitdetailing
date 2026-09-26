@@ -54,6 +54,81 @@ export default function PanelAyarlarPage() {
         Kuyruk: {emailOutbox.length} e-posta · {whatsappOutbox.length} WhatsApp (bu tarayıcı)
       </p>
 
+      <div className="mt-8 max-w-xl space-y-3 rounded-xl border border-sky-400/25 bg-sky-400/5 p-4 text-sm text-zinc-300">
+        <p className="font-medium text-sky-200">Resend kurulumu</p>
+        <ol className="list-decimal space-y-1 pl-5 text-zinc-400">
+          <li>
+            <a className="text-amber-300 hover:underline" href="https://resend.com/signup" target="_blank" rel="noreferrer">
+              resend.com
+            </a>{" "}
+            hesabı açın
+          </li>
+          <li>
+            <a className="text-amber-300 hover:underline" href="https://resend.com/api-keys" target="_blank" rel="noreferrer">
+              API Keys
+            </a>{" "}
+            → Create → anahtarı kopyalayın (`re_…`)
+          </li>
+          <li>
+            Vercel → elitdetailing → Settings → Environment Variables:
+            <br />
+            <code className="text-zinc-200">RESEND_API_KEY</code> = anahtar
+            <br />
+            <code className="text-zinc-200">EMAIL_FROM</code> ={" "}
+            <code className="text-zinc-200">Elit Detailing &lt;onboarding@resend.dev&gt;</code> (test)
+          </li>
+          <li>Production + Preview işaretleyin → Save → Redeploy</li>
+          <li>
+            Kendi domaininiz için{" "}
+            <a className="text-amber-300 hover:underline" href="https://resend.com/domains" target="_blank" rel="noreferrer">
+              Domains
+            </a>
+            : <code className="text-zinc-200">elitdetailing.com</code> ekleyip DNS kayıtlarını ekleyin; sonra{" "}
+            <code className="text-zinc-200">EMAIL_FROM=Elit Detailing &lt;noreply@elitdetailing.com&gt;</code>
+          </li>
+        </ol>
+        <p className="text-xs text-zinc-500">
+          Test aşamasında Resend yalnızca hesabınıza kayıtlı e-postaya gönderir. Domain doğrulanınca herkese gider.
+        </p>
+        <Button
+          type="button"
+          variant="outline"
+          size="sm"
+          onClick={async () => {
+            const to = window.prompt("Test e-posta adresi (Resend hesabınızdaki adres)");
+            if (!to || !to.includes("@")) return;
+            try {
+              const res = await fetch("/api/email", {
+                method: "POST",
+                headers: { "Content-Type": "application/json" },
+                body: JSON.stringify({
+                  to,
+                  subject: "Elit Detailing — Resend test",
+                  text: "Bu bir test mesajıdır. Resend çalışıyorsa bu mail kutunuza düşer.",
+                  kind: "welcome",
+                }),
+              });
+              const json = (await res.json()) as { ok?: boolean; mode?: string; error?: string; id?: string };
+              if (json.ok && json.mode === "resend") {
+                toast.success("Resend gönderdi", { description: json.id });
+              } else if (json.ok && json.mode === "mock") {
+                toast.message("Hâlâ mock", {
+                  description: "Vercel’e RESEND_API_KEY ekleyip redeploy edin.",
+                });
+              } else {
+                toast.error(json.error || "Gönderilemedi");
+              }
+              const st = await fetch("/api/status").then((r) => r.json());
+              setStatus(st as StatusPayload);
+            } catch {
+              toast.error("Ağ hatası");
+            }
+          }}
+        >
+          Test e-postası gönder
+        </Button>
+      </div>
+
       <form
         className="mt-10 max-w-md space-y-3 rounded-xl border border-white/10 p-4"
         onSubmit={(e) => {
