@@ -1,6 +1,7 @@
 import { ACCESSORIES, SERVICES } from "./catalog";
 import { minutesAgo, todayISO } from "./format";
 import { segmentsFor } from "./process";
+import { buildDefaultCms } from "./site-cms";
 import type { AppState, Customer, Job, Technician } from "./types";
 
 const customers: Customer[] = [
@@ -353,5 +354,6 @@ export function buildSeed(): AppState {
     ],
     campaignNotif: true,
     couponNotif: true,
+    cms: buildDefaultCms(),
   };
 }

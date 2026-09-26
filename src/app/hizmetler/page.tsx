@@ -4,12 +4,17 @@ import Link from "next/link";
 import { PublicShell } from "@/components/public-shell";
 import { buttonVariants } from "@/components/ui/button";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
-import { CATEGORY_LABEL, SERVICES } from "@/lib/catalog";
+import { CATEGORY_LABEL } from "@/lib/catalog";
 import { tryFormat } from "@/lib/format";
+import { useStore } from "@/lib/store";
 import { cn } from "@/lib/utils";
+import { LoadingBlock } from "@/components/site-header";
 
 export default function HizmetlerPage() {
-  const groups = Array.from(new Set(SERVICES.map((s) => s.category)));
+  const { cms, ready } = useStore();
+  if (!ready) return <PublicShell><LoadingBlock /></PublicShell>;
+  const services = cms.services.filter((s) => s.active);
+  const groups = Array.from(new Set(services.map((s) => s.category)));
 
   return (
     <PublicShell>
@@ -17,8 +22,7 @@ export default function HizmetlerPage() {
         <p className="text-[11px] tracking-[0.3em] text-amber-300 uppercase">Katalog</p>
         <h1 className="mt-2 font-[family-name:var(--font-display)] text-4xl uppercase">Hizmetler</h1>
         <p className="mt-3 max-w-2xl text-sm text-zinc-400">
-          Uygulamanın desteklediği tüm işler. Süreler tipik atölye süreleridir; fiyatlar başlangıç tutarıdır. İnsan
-          temsilcisine bağlanmadan yapılabilecekler her kartta listelenir.
+          Fiyat ve süreler yönetici panelinden güncellenir. Temsilcisiz yapılabilecekler kartlarda listelenir.
         </p>
 
         {groups.map((g) => (
@@ -27,7 +31,7 @@ export default function HizmetlerPage() {
               {CATEGORY_LABEL[g]}
             </h2>
             <div className="mt-4 grid gap-4 md:grid-cols-2">
-              {SERVICES.filter((s) => s.category === g).map((s) => (
+              {services.filter((s) => s.category === g).map((s) => (
                 <Card key={s.id} className="border-white/10 bg-zinc-900/50">
                   <CardHeader>
                     <CardTitle>{s.name}</CardTitle>
@@ -39,7 +43,7 @@ export default function HizmetlerPage() {
                       Tahmini süre <span className="text-amber-200">{s.durationMin} dk</span>
                       <span className="text-zinc-500"> (+{s.bufferMin} dk tampon)</span>
                       {" · "}
-                      {tryFormat(s.fromPrice)} itibaren
+                      {s.discovery ? "Keşif sonrası fiyat" : `${tryFormat(s.fromPrice)} itibaren`}
                     </p>
                     <ul className="space-y-1 text-xs text-zinc-500">
                       {s.segments.map((seg) => (
@@ -48,14 +52,6 @@ export default function HizmetlerPage() {
                         </li>
                       ))}
                     </ul>
-                    <div>
-                      <p className="text-[11px] tracking-widest text-zinc-500 uppercase">Temsilcisiz</p>
-                      <ul className="mt-1 list-disc space-y-1 pl-4">
-                        {s.selfService.map((x) => (
-                          <li key={x}>{x}</li>
-                        ))}
-                      </ul>
-                    </div>
                     <div className="flex gap-2 pt-1">
                       {s.category === "yol-yardim" ? (
                         <Link href="/yol-yardim" className={cn(buttonVariants({ size: "sm" }))}>
@@ -70,9 +66,6 @@ export default function HizmetlerPage() {
                           Randevu
                         </Link>
                       )}
-                      <Link href="/sss" className={cn(buttonVariants({ variant: "ghost", size: "sm" }))}>
-                        SSS
-                      </Link>
                     </div>
                   </CardContent>
                 </Card>

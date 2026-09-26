@@ -9,21 +9,25 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
-import { SERVICES, requiresDiscovery } from "@/lib/catalog";
+import { SERVICES } from "@/lib/catalog";
 import { startIyzicoCheckout } from "@/lib/checkout-draft";
 import { addDaysISO, todayISO, tryFormat, uid } from "@/lib/format";
 import { occupancyMin } from "@/lib/process";
 import { SLOT_TIMES, slotConflicts } from "@/lib/schedule";
 import { useStore } from "@/lib/store";
+import { textMap } from "@/lib/site-cms";
 import { Suspense } from "react";
 
 function Form() {
   const params = useSearchParams();
   const preset = params?.get("hizmet") ?? "ic-dis-yikama";
-  const bookable = SERVICES.filter((s) => s.category !== "yol-yardim");
-  const { ready, session, createAppointment, appointments } = useStore();
+  const { ready, session, createAppointment, appointments, cms } = useStore();
+  const bookable = cms.services.filter((s) => s.active && s.category !== "yol-yardim");
+  const texts = textMap(cms.texts);
+  const formDef = cms.forms.find((f) => f.id === "form-randevu");
+  const fieldOn = (key: string) => !formDef || (formDef.enabled && (formDef.fields.find((f) => f.key === key)?.enabled ?? true));
   const router = useRouter();
-  const [serviceId, setServiceId] = useState(bookable.some((s) => s.id === preset) ? preset : "ic-dis-yikama");
+  const [serviceId, setServiceId] = useState(bookable.some((s) => s.id === preset) ? preset : bookable[0]?.id || "ic-dis-yikama");
   const [name, setName] = useState(session.name !== "Misafir" ? session.name : "Demo Müşteri");
   const [phone, setPhone] = useState("05551234567");
   const [email, setEmail] = useState("demo@elitdetailing.com");
@@ -35,11 +39,13 @@ function Form() {
   const [error, setError] = useState("");
   const [pending, setPending] = useState(false);
 
-  const svc = useMemo(() => SERVICES.find((s) => s.id === serviceId), [serviceId]);
-  const discovery = svc ? requiresDiscovery(svc.id) : false;
+  const svc = useMemo(() => cms.services.find((s) => s.id === serviceId) || SERVICES.find((s) => s.id === serviceId), [cms.services, serviceId]);
+  const discovery = Boolean(svc && "discovery" in svc ? svc.discovery : svc?.id === "boya-koruma");
 
   if (!ready) return <LoadingBlock />;
-
+  if (formDef && !formDef.enabled) {
+    return <p className="text-sm text-zinc-400">Randevu formu şu an kapalı. Lütfen daha sonra deneyin.</p>;
+  }
   async function submit(e: React.FormEvent) {
     e.preventDefault();
     setError("");
@@ -117,36 +123,49 @@ function Form() {
             {bookable.map((s) => (
               <option key={s.id} value={s.id} style={{ color: "#111", backgroundColor: "#fff" }}>
                 {s.name}
-                {requiresDiscovery(s.id) ? " (keşif)" : ` — ${tryFormat(s.fromPrice)}`}
+                {s.discovery ? " (keşif)" : ` — ${tryFormat(s.fromPrice)}`}
               </option>
             ))}
           </select>
         </div>
         <div className="grid gap-4 sm:grid-cols-2">
+          {fieldOn("name") ? (
           <div className="grid gap-2">
             <Label htmlFor="name">Ad soyad</Label>
             <Input id="name" value={name} onChange={(e) => setName(e.target.value)} />
           </div>
+          ) : null}
+          {fieldOn("phone") ? (
           <div className="grid gap-2">
             <Label htmlFor="phone">Telefon</Label>
             <Input id="phone" value={phone} onChange={(e) => setPhone(e.target.value)} inputMode="tel" />
           </div>
+          ) : null}
+          {fieldOn("email") ? (
           <div className="grid gap-2">
             <Label htmlFor="email">E-posta</Label>
             <Input id="email" type="email" value={email} onChange={(e) => setEmail(e.target.value)} />
           </div>
+          ) : null}
+          {fieldOn("plate") ? (
           <div className="grid gap-2">
             <Label htmlFor="plate">Plaka</Label>
             <Input id="plate" className="plate" value={plate} onChange={(e) => setPlate(e.target.value)} />
           </div>
+          ) : null}
+          {fieldOn("vehicle") ? (
           <div className="grid gap-2">
             <Label htmlFor="vehicle">Araç</Label>
             <Input id="vehicle" value={vehicle} onChange={(e) => setVehicle(e.target.value)} />
           </div>
+          ) : null}
+          {fieldOn("date") ? (
           <div className="grid gap-2">
             <Label htmlFor="date">Tarih</Label>
             <Input id="date" type="date" min={todayISO()} max={addDaysISO(14)} value={date} onChange={(e) => setDate(e.target.value)} />
           </div>
+          ) : null}
+          {fieldOn("time") ? (
           <div className="grid gap-2">
             <Label htmlFor="time">Saat</Label>
             <select
@@ -165,11 +184,14 @@ function Form() {
               })}
             </select>
           </div>
+          ) : null}
         </div>
+        {fieldOn("notes") ? (
         <div className="grid gap-2">
           <Label htmlFor="notes">Not (leke, çocuk koltuğu, ebat…)</Label>
           <Textarea id="notes" value={notes} onChange={(e) => setNotes(e.target.value)} rows={4} />
         </div>
+        ) : null}
         {error ? <p className="text-sm text-red-300">{error}</p> : null}
         <Button type="submit" disabled={pending} size="lg">
           {pending
@@ -220,12 +242,15 @@ function Form() {
 }
 
 export default function RandevuPage() {
+  const { cms } = useStore();
+  const lead = textMap(cms.texts)["randevu.lead"];
   return (
     <PublicShell>
       <div className="mx-auto max-w-6xl px-4 py-12">
         <h1 className="font-[family-name:var(--font-display)] text-4xl uppercase">Randevu</h1>
         <p className="mt-2 max-w-xl text-sm text-zinc-400">
-          Sabit fiyatlı hizmetler iyzico ile peşin. Seramik / boya koruma keşif sonrası ödenir.
+          {lead ||
+            "Sabit fiyatlı hizmetler iyzico ile peşin. Seramik / boya koruma keşif sonrası ödenir."}
         </p>
         <div className="mt-8">
           <Suspense fallback={<LoadingBlock />}>

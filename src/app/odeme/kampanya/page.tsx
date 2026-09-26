@@ -17,8 +17,12 @@ import { useStore } from "@/lib/store";
 function Form() {
   const params = useSearchParams();
   const offerId = params?.get("id") || "1";
-  const offer = useMemo(() => BANNER_OFFERS.find((o) => o.id === offerId) ?? BANNER_OFFERS[0]!, [offerId]);
-  const { ready, session } = useStore();
+  const { ready, session, cms } = useStore();
+  const offer = useMemo(() => {
+    const fromCms = cms.banners.find((o) => o.id === offerId && o.active);
+    if (fromCms) return fromCms;
+    return cms.banners.find((o) => o.active) || BANNER_OFFERS[0]!;
+  }, [cms.banners, offerId]);
   const [name, setName] = useState(session.name !== "Misafir" ? session.name : "Demo Müşteri");
   const [phone, setPhone] = useState("05551234567");
   const [email, setEmail] = useState("demo@elitdetailing.com");

@@ -1,43 +1,12 @@
 'use client';
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useMemo } from 'react';
 import { useRouter } from 'next/navigation';
 import { useAuth } from '../context/AuthContext';
+import { useStore } from '../lib/store';
+import { textMap } from '../lib/site-cms';
 import logoImg from '../assets/elite-logo.png';
 
 const logoSrc = typeof logoImg === 'string' ? logoImg : logoImg.src;
-
-const announcements = [
-  { emoji: '🔥', text: 'Eylül Kampanyası: Seramik Kaplamada %20 İndirim — Kod: ELIT20' },
-  { emoji: '⚡', text: 'Yeni Hizmet: Filo Araç Bakım Paketleri — Toplu Randevu Avantajı' },
-  { emoji: '🎁', text: 'İç+Dış Yıkama Al 1 Öde — Eylül Sonuna Kadar Geçerli' },
-  { emoji: '🏆', text: 'Elit Detailing, 2024 Türkiyenin En İyi Detailing Merkezi Ödülünü Aldı' },
-  { emoji: '📱', text: 'Mobil Uygulamamızı İndirin, İlk Randevunuzda %10 İndirim Kazanın' },
-];
-
-import { BANNER_OFFERS } from '../lib/catalog';
-
-const campaigns = BANNER_OFFERS.map((o) => ({
-  id: o.id,
-  tag: o.tag,
-  title: o.title,
-  highlight: o.highlight,
-  desc: o.desc,
-  cta: o.cta,
-  code: `Kod: ${o.code}`,
-  image: o.image,
-  accent: o.accent,
-  checkoutPath: `/odeme/kampanya?id=${o.id}`,
-}));
-
-const services = [
-  { id: 1, title: 'Premium Oto Yıkama', subtitle: 'PREMIUM · EXCLUSIVE', price: '1.250 ₺', duration: '45 dk', tag: 'En Popüler', icon: '/services/premium-oto-yikama.png' },
-  { id: 2, title: 'Lastik Değişimi & Balans', subtitle: '', price: '1.850 ₺', duration: '60 dk', tag: '', icon: '/services/lastik-balans.png' },
-  { id: 3, title: 'Oto Kuaför & Detailing', subtitle: '', price: '950 ₺', duration: '30 dk', tag: '', icon: '/services/oto-kuafor-detailing.png' },
-  { id: 4, title: 'Detaylı İç-Dış Yıkama', subtitle: 'FULL DETAILING', price: '2.750 ₺', duration: '90 dk', tag: 'Premium', icon: '/services/detayli-ic-dis-yikama.png' },
-  { id: 6, title: 'Seramik Kaplama', subtitle: 'CERAMIC PRO', price: '8.500 ₺', duration: '240 dk', tag: 'Lüks', icon: '/services/seramik-kaplama.png' },
-  { id: 7, title: 'Acil Yol Yardımı', subtitle: '7/24', price: '2.200 ₺', duration: 'Anında', tag: '7/24', icon: '/services/acil-yol-yardim.png' },
-  { id: 8, title: 'PPF Film Kaplama', subtitle: 'PAINT PROTECTION', price: '12.000 ₺', duration: '360 dk', tag: 'Elit', icon: '/services/ppf-film-kaplama.png' },
-];
 
 const navLinks = ['Anasayfa', 'Hizmetler', 'Hakkımızda', 'İletişim'];
 
@@ -45,17 +14,43 @@ export default function Home() {
   const router = useRouter();
   const navigate = (path: string) => router.push(path);
   const { user, logout } = useAuth();
-  const [activeService, setActiveService] = useState<number | null>(null);
+  const { cms, ready } = useStore();
+  const t = useMemo(() => textMap(cms.texts), [cms.texts]);
+  const announcements = useMemo(() => cms.ticker.filter((x) => x.active), [cms.ticker]);
+  const campaigns = useMemo(
+    () =>
+      cms.banners
+        .filter((o) => o.active)
+        .map((o) => ({
+          id: o.id,
+          tag: o.tag,
+          title: o.title,
+          highlight: o.highlight,
+          desc: o.desc,
+          cta: o.cta,
+          code: `Kod: ${o.code}`,
+          image: o.image,
+          accent: o.accent,
+          checkoutPath: `/odeme/kampanya?id=${o.id}`,
+        })),
+    [cms.banners],
+  );
+  const services = useMemo(() => cms.homeServices.filter((s) => s.active), [cms.homeServices]);
+  const [activeService, setActiveService] = useState<string | null>(null);
   const [userMenuOpen, setUserMenuOpen] = useState(false);
   const [activeCampaign, setActiveCampaign] = useState(0);
   const [campaignPaused, setCampaignPaused] = useState(false);
   const [navOpen, setNavOpen] = useState(false);
 
   useEffect(() => {
-    if (campaignPaused) return;
-    const t = setInterval(() => setActiveCampaign(p => (p + 1) % campaigns.length), 5000);
-    return () => clearInterval(t);
-  }, [campaignPaused]);
+    if (campaignPaused || campaigns.length === 0) return;
+    const tmr = setInterval(() => setActiveCampaign((p) => (p + 1) % campaigns.length), 5000);
+    return () => clearInterval(tmr);
+  }, [campaignPaused, campaigns.length]);
+
+  useEffect(() => {
+    setActiveCampaign(0);
+  }, [campaigns.length]);
 
   useEffect(() => {
     const close = () => { if (window.innerWidth > 900) setNavOpen(false); };
@@ -70,6 +65,22 @@ export default function Home() {
 
   const navTarget = (l: string) => (l === 'Anasayfa' ? 'hero' : l === 'Hizmetler' ? 'services' : l === 'Hakkımızda' ? 'about' : 'contact');
 
+  if (!ready) {
+    return <div style={{ background: '#080808', minHeight: '100vh' }} />;
+  }
+
+  const aboutPoints = (t['about.points'] || '').split(',').map((x) => x.trim()).filter(Boolean);
+  const stats = [
+    { num: t['stats.customers'] || '2.500+', label: 'Mutlu Müşteri' },
+    { num: t['stats.years'] || '8 Yıl', label: 'Deneyim' },
+    { num: t['stats.tech'] || '15+', label: 'Uzman Teknisyen' },
+    { num: t['stats.satisfaction'] || '%100', label: 'Memnuniyet' },
+  ];
+  const contacts = [
+    { icon: '☎', label: 'Telefon', value: t['contact.phone'] || '' },
+    { icon: '✉', label: 'E-Posta', value: t['contact.email'] || '' },
+    { icon: '⊙', label: 'Adres', value: t['contact.address'] || '' },
+  ];
   return (
     <div className="home-page" style={{ background: '#080808', minHeight: '100vh', color: '#f0e6c8' }}>
       <nav className="site-nav">
@@ -139,6 +150,7 @@ export default function Home() {
         </div>
       </div>
 
+      {campaigns.length > 0 ? (
       <div className="campaign-banner" onMouseEnter={() => setCampaignPaused(true)} onMouseLeave={() => setCampaignPaused(false)}>
         {campaigns.map((c, i) => (
           <div key={c.id} className={`campaign-slide${activeCampaign === i ? ' is-active' : ''}`}>
@@ -170,12 +182,13 @@ export default function Home() {
         </div>
         <div className="campaign-bar"/>
       </div>
+      ) : <div style={{ height: 124 }} />}
 
       <section id="hero" className="home-hero">
         <div className="home-hero-bg" />
         <div className="home-hero-veil" />
         <div className="home-hero-inner">
-          <div className="home-hero-kicker">✦ &nbsp; PREMİUM OTOMOTİV HİZMETLERİ &nbsp; ✦</div>
+          <div className="home-hero-kicker">{t['hero.kicker'] || '✦   PREMİUM OTOMOTİV HİZMETLERİ   ✦'}</div>
           <div className="home-hero-brand">
             <img src={logoSrc} alt="Elit Detailing" className="home-hero-logo" />
             <div className="home-hero-titles">
@@ -184,10 +197,10 @@ export default function Home() {
             </div>
           </div>
           <div className="gold-line" style={{ width: 180, margin: '0 auto 36px' }} />
-          <p className="home-hero-lead">Aracınız bir sanat eserine dönüşmeyi hak ediyor. Profesyonel detailing, seramik kaplama ve premium bakım hizmetleriyle fark yaratıyoruz.</p>
+          <p className="home-hero-lead">{t['hero.lead']}</p>
           <div className="home-hero-actions">
-            <button className="btn-gold" onClick={() => scrollTo('services')} style={{ padding: '15px 42px', fontSize: 13, letterSpacing: '0.1em', borderRadius: 2, fontFamily: 'Raleway, sans-serif', fontWeight: 700 }}>Hizmetleri Keşfet</button>
-            <button className="btn-outline-gold" onClick={() => user ? scrollTo('services') : navigate('/login')} style={{ padding: '15px 42px', fontSize: 13, letterSpacing: '0.1em', borderRadius: 2, fontFamily: 'Raleway, sans-serif', fontWeight: 600 }}>{user ? 'Randevu Al' : 'Giriş Yap'}</button>
+            <button className="btn-gold" onClick={() => scrollTo('services')} style={{ padding: '15px 42px', fontSize: 13, letterSpacing: '0.1em', borderRadius: 2, fontFamily: 'Raleway, sans-serif', fontWeight: 700 }}>{t['hero.ctaPrimary'] || 'Hizmetleri Keşfet'}</button>
+            <button className="btn-outline-gold" onClick={() => user ? scrollTo('services') : navigate('/login')} style={{ padding: '15px 42px', fontSize: 13, letterSpacing: '0.1em', borderRadius: 2, fontFamily: 'Raleway, sans-serif', fontWeight: 600 }}>{user ? 'Randevu Al' : (t['hero.ctaSecondary'] || 'Giriş Yap')}</button>
           </div>
         </div>
         <div className="home-hero-scroll">
@@ -198,7 +211,7 @@ export default function Home() {
 
       <section className="home-stats">
         <div className="home-stats-grid">
-          {[{num:'2.500+',label:'Mutlu Müşteri'},{num:'8 Yıl',label:'Deneyim'},{num:'15+',label:'Uzman Teknisyen'},{num:'%100',label:'Memnuniyet'}].map((s)=>(
+          {stats.map((s)=>(
             <div key={s.label} className="home-stat">
               <div className="font-display text-gold" style={{ fontSize: 28, fontWeight: 700, marginBottom: 6 }}>{s.num}</div>
               <div className="home-stat-label">{s.label}</div>
@@ -210,8 +223,8 @@ export default function Home() {
       <section id="services" className="home-services">
         <div className="home-services-inner">
           <div style={{ textAlign: 'center', marginBottom: 64 }}>
-            <div style={{ fontSize: 11, letterSpacing: '0.4em', color: 'rgba(201,168,76,0.6)', marginBottom: 16, fontFamily: 'Raleway, sans-serif', fontWeight: 600 }}>✦ &nbsp; HİZMETLERİMİZ &nbsp; ✦</div>
-            <h2 className="font-display text-gold-gradient" style={{ fontSize: 'clamp(1.6rem, 4.5vw, 3.2rem)', fontWeight: 700, marginBottom: 16 }}>Premium Bakım Paketleri</h2>
+            <div style={{ fontSize: 11, letterSpacing: '0.4em', color: 'rgba(201,168,76,0.6)', marginBottom: 16, fontFamily: 'Raleway, sans-serif', fontWeight: 600 }}>{t['services.kicker'] || '✦   HİZMETLERİMİZ   ✦'}</div>
+            <h2 className="font-display text-gold-gradient" style={{ fontSize: 'clamp(1.6rem, 4.5vw, 3.2rem)', fontWeight: 700, marginBottom: 16 }}>{t['services.title'] || 'Premium Bakım Paketleri'}</h2>
             <div className="gold-line" style={{ width: 120, margin: '0 auto' }} />
           </div>
           <div className="home-services-list">
@@ -224,14 +237,15 @@ export default function Home() {
                 <div className="service-copy">
                   <div className="service-title-row">
                     <span className="font-display service-title">{svc.title}</span>
-                    {svc.subtitle && svc.subtitle.split(/[·•]/).map(t=>t.trim()).filter(Boolean).map(t=>(<span key={t} className="service-chip">{t}</span>))}
+                    {svc.subtitle && svc.subtitle.split(/[·•]/).map(x=>x.trim()).filter(Boolean).map(x=>(<span key={x} className="service-chip">{x}</span>))}
+                    {svc.tag ? <span className="service-chip">{svc.tag}</span> : null}
                   </div>
                   <div className="service-meta">
-                    <span className="font-display service-price">{svc.price}</span>
+                    <span className="font-display service-price">{svc.priceLabel}</span>
                     <span className="service-duration">⏱ {svc.duration}</span>
                   </div>
                 </div>
-                <button className="btn-gold service-select" type="button" onClick={()=>navigate(svc.id===7?'/yol-yardim':'/login')}>Seç →</button>
+                <button className="btn-gold service-select" type="button" onClick={()=>navigate(svc.href || '/randevu')}>Seç →</button>
               </div>
             ))}
           </div>
@@ -241,35 +255,35 @@ export default function Home() {
       <section id="about" className="home-about">
         <div className="home-about-grid">
           <div>
-            <div style={{ fontSize: 11, letterSpacing: '0.4em', color: 'rgba(201,168,76,0.6)', marginBottom: 16, fontFamily: 'Raleway, sans-serif', fontWeight: 600 }}>✦ &nbsp; HAKKIMIZDA</div>
-            <h2 className="font-display" style={{ fontSize: 'clamp(2rem, 3.5vw, 3rem)', fontWeight: 700, marginBottom: 24, lineHeight: 1.15 }}><span className="text-gold-gradient">Mükemmelliği</span><br /><span style={{ color: '#f0e6c8', fontStyle: 'italic', fontWeight: 400 }}>Tanımlıyoruz</span></h2>
+            <div style={{ fontSize: 11, letterSpacing: '0.4em', color: 'rgba(201,168,76,0.6)', marginBottom: 16, fontFamily: 'Raleway, sans-serif', fontWeight: 600 }}>{t['about.kicker'] || '✦   HAKKIMIZDA'}</div>
+            <h2 className="font-display" style={{ fontSize: 'clamp(2rem, 3.5vw, 3rem)', fontWeight: 700, marginBottom: 24, lineHeight: 1.15 }}><span className="text-gold-gradient">{t['about.title1'] || 'Mükemmelliği'}</span><br /><span style={{ color: '#f0e6c8', fontStyle: 'italic', fontWeight: 400 }}>{t['about.title2'] || 'Tanımlıyoruz'}</span></h2>
             <div className="gold-line" style={{ width: 80, marginBottom: 28 }} />
-            <p className="home-about-p">8 yılı aşkın deneyimimizle İstanbulun en prestijli araç bakım merkezi olarak hizmet veriyoruz.</p>
-            <p className="home-about-p" style={{ marginBottom: 36 }}>Ceramic Pro sertifikalı ekibimiz, dünya standartlarında ürünler ve özel tekniklerle aracınıza değer katıyor.</p>
+            <p className="home-about-p">{t['about.p1']}</p>
+            <p className="home-about-p" style={{ marginBottom: 36 }}>{t['about.p2']}</p>
             <div className="home-about-points">
-              {['Sertifikalı Ürünler','Uzman Teknisyen','Garanti Hizmeti','7/24 Destek'].map(label=>(<div key={label} style={{ display: 'flex', alignItems: 'center', gap: 10 }}><span style={{ color: '#C9A84C', fontSize: 8 }}>◆</span><span style={{ fontSize: 13, fontFamily: 'Raleway, sans-serif', fontWeight: 500, color: 'rgba(240,230,200,0.75)', letterSpacing: '0.04em' }}>{label}</span></div>))}
+              {aboutPoints.map(label=>(<div key={label} style={{ display: 'flex', alignItems: 'center', gap: 10 }}><span style={{ color: '#C9A84C', fontSize: 8 }}>◆</span><span style={{ fontSize: 13, fontFamily: 'Raleway, sans-serif', fontWeight: 500, color: 'rgba(240,230,200,0.75)', letterSpacing: '0.04em' }}>{label}</span></div>))}
             </div>
           </div>
           <div className="home-about-media">
-            <img src="https://images.unsplash.com/photo-1625047509248-ec889cbff17f?w=600&h=700&fit=crop&auto=format" alt="Elit Detailing workshop" />
+            <img src={t['about.image'] || 'https://images.unsplash.com/photo-1625047509248-ec889cbff17f?w=600&h=700&fit=crop&auto=format'} alt="Elit Detailing workshop" />
             <div className="home-about-badge">
-              <div className="font-display" style={{ fontSize: 32, fontWeight: 900, color: '#080808', lineHeight: 1 }}>8+</div>
-              <div style={{ fontSize: 10, letterSpacing: '0.2em', color: 'rgba(8,8,8,0.65)', fontFamily: 'Raleway, sans-serif', fontWeight: 600 }}>YIL DENEYİM</div>
+              <div className="font-display" style={{ fontSize: 32, fontWeight: 900, color: '#080808', lineHeight: 1 }}>{t['about.badgeNum'] || '8+'}</div>
+              <div style={{ fontSize: 10, letterSpacing: '0.2em', color: 'rgba(8,8,8,0.65)', fontFamily: 'Raleway, sans-serif', fontWeight: 600 }}>{t['about.badgeLabel'] || 'YIL DENEYİM'}</div>
             </div>
           </div>
         </div>
       </section>
 
       <section className="home-cta">
-        <div style={{ fontSize: 11, letterSpacing: '0.4em', color: 'rgba(201,168,76,0.55)', marginBottom: 20, fontFamily: 'Raleway, sans-serif', fontWeight: 600 }}>✦ &nbsp; RANDEVU</div>
-        <h2 className="font-display text-gold-gradient" style={{ fontSize: 'clamp(1.6rem, 4vw, 3rem)', fontWeight: 700, marginBottom: 18 }}>Aracınız için En İyi Bakımı Seçin</h2>
-        <p className="home-cta-lead">Online randevu alın, premium detailing deneyimini yaşayın.</p>
-        <button className="btn-gold" onClick={()=>user?scrollTo('services'):navigate('/login')} style={{ padding: '16px 52px', fontSize: 13, letterSpacing: '0.1em', borderRadius: 2, fontFamily: 'Raleway, sans-serif', fontWeight: 700 }}>Hemen Randevu Al</button>
+        <div style={{ fontSize: 11, letterSpacing: '0.4em', color: 'rgba(201,168,76,0.55)', marginBottom: 20, fontFamily: 'Raleway, sans-serif', fontWeight: 600 }}>{t['cta.kicker'] || '✦   RANDEVU'}</div>
+        <h2 className="font-display text-gold-gradient" style={{ fontSize: 'clamp(1.6rem, 4vw, 3rem)', fontWeight: 700, marginBottom: 18 }}>{t['cta.title']}</h2>
+        <p className="home-cta-lead">{t['cta.lead']}</p>
+        <button className="btn-gold" onClick={()=>user?scrollTo('services'):navigate('/randevu')} style={{ padding: '16px 52px', fontSize: 13, letterSpacing: '0.1em', borderRadius: 2, fontFamily: 'Raleway, sans-serif', fontWeight: 700 }}>{t['cta.button'] || 'Hemen Randevu Al'}</button>
       </section>
 
       <section id="contact" className="home-contact">
         <div className="home-contact-grid">
-          {[{icon:'☎',label:'Telefon',value:'+90 (212) 555 0123'},{icon:'✉',label:'E-Posta',value:'info@elitedetailing.com.tr'},{icon:'⊙',label:'Adres',value:'Levent, İstanbul'}].map(c=>(
+          {contacts.map(c=>(
             <div key={c.label}>
               <div style={{ fontSize: 22, color: '#C9A84C', marginBottom: 14 }}>{c.icon}</div>
               <div style={{ fontSize: 10, letterSpacing: '0.3em', color: 'rgba(201,168,76,0.55)', marginBottom: 8, fontFamily: 'Raleway, sans-serif', fontWeight: 600 }}>{c.label.toUpperCase()}</div>
@@ -285,7 +299,7 @@ export default function Home() {
             <img src={logoSrc} alt="Elit Detailing" style={{ height: 30, filter: 'drop-shadow(0 0 6px rgba(201,168,76,0.3))' }} />
             <span className="font-cinzel text-gold" style={{ fontSize: 11, letterSpacing: '0.2em' }}>ELIT DETAILING</span>
           </div>
-          <div style={{ fontSize: 12, color: 'rgba(240,230,200,0.3)', fontFamily: 'Inter, sans-serif' }}>© 2026 Elit Detailing. Tüm hakları saklıdır.</div>
+          <div style={{ fontSize: 12, color: 'rgba(240,230,200,0.3)', fontFamily: 'Inter, sans-serif' }}>{t['footer.copy']}</div>
         </div>
       </footer>
 

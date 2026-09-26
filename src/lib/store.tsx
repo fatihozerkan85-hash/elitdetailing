@@ -9,16 +9,18 @@ import {
   useState,
   type ReactNode,
 } from "react";
-import { ACCESSORIES, CAMPAIGNS, DEMO, JOB_STATUS_LABEL, ROADSIDE_STATUS_LABEL, SERVICES, requiresDiscovery } from "./catalog";
+import { ACCESSORIES, DEMO, JOB_STATUS_LABEL, ROADSIDE_STATUS_LABEL, SERVICES } from "./catalog";
 import { uid } from "./format";
 import { jobClock, hydrateJob, segmentsFor } from "./process";
 import { buildSeed } from "./seed";
+import { buildDefaultCms, type SiteCms } from "./site-cms";
 import { statusWhatsAppText, waMeUrl } from "./whatsapp";
 import type {
   AccessoryOrder,
   Appointment,
   AppState,
   CartLine,
+  Coupon,
   InboxItem,
   Job,
   JobStatus,
@@ -29,7 +31,7 @@ import type {
   Session,
 } from "./types";
 
-const KEY = "elit-detailing-v3";
+const KEY = "elit-detailing-v4";
 
 type PaidCheckoutInput = {
   conversationId: string;
@@ -113,6 +115,10 @@ type Store = AppState & {
   markAllNotificationsRead: () => void;
   claimCoupon: (code: string) => boolean;
   setNotifPrefs: (p: { campaignNotif?: boolean; couponNotif?: boolean }) => void;
+  setCms: (cms: SiteCms) => void;
+  patchCms: (patch: Partial<SiteCms>) => void;
+  createOwnerCoupon: (input: { code: string; title: string; rule: string; expires: string; customerId?: string }) => Coupon;
+  deleteCoupon: (id: string) => void;
 };
 
 const Ctx = createContext<Store | null>(null);
@@ -201,6 +207,7 @@ export function StoreProvider({ children }: { children: ReactNode }) {
               })),
               payments: parsed.payments ?? seed.payments ?? [],
               cart: parsed.cart ?? [],
+              cms: { ...buildDefaultCms(), ...(parsed.cms ?? {}), banners: parsed.cms?.banners ?? seed.cms.banners, ticker: parsed.cms?.ticker ?? seed.cms.ticker, homeServices: parsed.cms?.homeServices ?? seed.cms.homeServices, campaigns: parsed.cms?.campaigns ?? seed.cms.campaigns, services: parsed.cms?.services ?? seed.cms.services, texts: parsed.cms?.texts ?? seed.cms.texts, forms: parsed.cms?.forms ?? seed.cms.forms },
               whatsappOutbox: parsed.whatsappOutbox ?? [],
               coupons: parsed.coupons ?? seed.coupons,
               campaignNotif: parsed.campaignNotif ?? true,
@@ -261,87 +268,94 @@ export function StoreProvider({ children }: { children: ReactNode }) {
   }, []);
 
   const createAppointment = useCallback<Store["createAppointment"]>((input) => {
-    const service = SERVICES.find((x) => x.id === input.serviceId)!;
-    const discovery = input.discovery ?? requiresDiscovery(service.id);
-    const amount = input.amount ?? (discovery ? 0 : service.fromPrice);
-    const paymentStatus = input.paymentStatus ?? (discovery ? "kesif" : "odendi");
-    const status = input.status ?? (paymentStatus === "odendi" ? "onaylandi" : "bekliyor");
-    const appt: Appointment = {
-      id: uid("RDV"),
-      customerId: "c-demo",
-      customerName: input.name,
-      phone: input.phone,
-      plate: input.plate.toUpperCase(),
-      vehicle: input.vehicle,
-      serviceId: service.id,
-      serviceName: service.name,
-      date: input.date,
-      time: input.time,
-      notes: input.notes,
-      status,
-      paymentStatus,
-      paymentId: input.paymentId,
-      amount,
-      createdAt: new Date().toISOString(),
-    };
-    const job: Job = {
-      id: uid("IS"),
-      kind: service.category === "lastik" ? "lastik" : service.category === "detailing" ? "detailing" : "yikama",
-      customerId: "c-demo",
-      customerName: input.name,
-      phone: input.phone,
-      plate: input.plate.toUpperCase(),
-      vehicle: input.vehicle,
-      serviceId: service.id,
-      serviceName: service.name,
-      notes: input.notes,
-      estimate: amount || service.fromPrice,
-      paymentStatus,
-      paymentId: input.paymentId,
-      status: "giris-bekleniyor",
-      technicianId: service.category === "lastik" ? "t-ali" : service.category === "detailing" ? "t-deniz" : "t-mehmet",
-      appointmentId: appt.id,
-      currentSegmentIndex: -1,
-      notifiedSegmentIndex: -1,
-      segments: segmentsFor(service.id),
-      createdAt: new Date().toISOString(),
-      updatedAt: new Date().toISOString(),
-      timeline: [
-        {
-          at: new Date().toISOString(),
-          status: "giris-bekleniyor",
-          note: discovery
-            ? `Keşif randevusu ${input.date} ${input.time}. Fiyat keşif sonrası iyzico linki ile tahsil edilir.`
-            : `Randevu ${input.date} ${input.time} — iyzico ile ödendi (${amount} ₺). Saat gelmesi süreci başlatmaz; giriş onayı bekleniyor.`,
-        },
-      ],
-    };
-    setState((s) => ({
-      ...s,
-      appointments: [appt, ...s.appointments],
-      jobs: [job, ...s.jobs],
-      inbox: pushInbox(s.inbox, {
-        customerId: s.session.customerId ?? "c-demo",
-        kind: "randevu",
-        refId: appt.id,
-        title: `${service.name} randevusu — ${appt.plate}`,
-        messages: [
+    let created!: Appointment;
+    setState((s) => {
+      const service =
+        s.cms.services.find((x) => x.id === input.serviceId && x.active) ||
+        SERVICES.find((x) => x.id === input.serviceId);
+      if (!service) return s;
+      const discovery = input.discovery ?? ("discovery" in service ? Boolean(service.discovery) : service.id === "boya-koruma");
+      const amount = input.amount ?? (discovery ? 0 : service.fromPrice);
+      const paymentStatus = input.paymentStatus ?? (discovery ? "kesif" : "odendi");
+      const status = input.status ?? (paymentStatus === "odendi" ? "onaylandi" : "bekliyor");
+      const appt: Appointment = {
+        id: uid("RDV"),
+        customerId: "c-demo",
+        customerName: input.name,
+        phone: input.phone,
+        plate: input.plate.toUpperCase(),
+        vehicle: input.vehicle,
+        serviceId: service.id,
+        serviceName: service.name,
+        date: input.date,
+        time: input.time,
+        notes: input.notes,
+        status,
+        paymentStatus,
+        paymentId: input.paymentId,
+        amount,
+        createdAt: new Date().toISOString(),
+      };
+      created = appt;
+      const job: Job = {
+        id: uid("IS"),
+        kind: service.category === "lastik" ? "lastik" : service.category === "detailing" ? "detailing" : "yikama",
+        customerId: "c-demo",
+        customerName: input.name,
+        phone: input.phone,
+        plate: input.plate.toUpperCase(),
+        vehicle: input.vehicle,
+        serviceId: service.id,
+        serviceName: service.name,
+        notes: input.notes,
+        estimate: amount || service.fromPrice,
+        paymentStatus,
+        paymentId: input.paymentId,
+        status: "giris-bekleniyor",
+        technicianId: service.category === "lastik" ? "t-ali" : service.category === "detailing" ? "t-deniz" : "t-mehmet",
+        appointmentId: appt.id,
+        currentSegmentIndex: -1,
+        notifiedSegmentIndex: -1,
+        segments: service.segments?.length ? service.segments : segmentsFor(service.id),
+        createdAt: new Date().toISOString(),
+        updatedAt: new Date().toISOString(),
+        timeline: [
           {
             at: new Date().toISOString(),
-            from: "sistem",
-            text: discovery
-              ? `${input.date} ${input.time} keşif randevunuz alındı. Teklif hazır olunca Taleplerim’e iyzico ödeme linki düşer.`
-              : `${input.date} ${input.time} randevunuz iyzico ile ödendi (${amount} ₺). Giriş onayından sonra süreç başlar. İş: ${job.id}.`,
+            status: "giris-bekleniyor",
+            note: discovery
+              ? `Keşif randevusu ${input.date} ${input.time}. Fiyat keşif sonrası iyzico linki ile tahsil edilir.`
+              : `Randevu ${input.date} ${input.time} — iyzico ile ödendi (${amount} ₺). Saat gelmesi süreci başlatmaz; giriş onayı bekleniyor.`,
           },
         ],
-      }),
-      notifications: notify(s.notifications, {
-        title: discovery ? "Keşif randevusu" : "Ödemeli randevu",
-        body: `${appt.id} · ${input.name} · ${service.name}`,
-        href: `/yonetici/isler/${job.id}`,
-      }),
-    }));
-    return appt;
+      };
+      return {
+        ...s,
+        appointments: [appt, ...s.appointments],
+        jobs: [job, ...s.jobs],
+        inbox: pushInbox(s.inbox, {
+          customerId: s.session.customerId ?? "c-demo",
+          kind: "randevu",
+          refId: appt.id,
+          title: `${service.name} randevusu — ${appt.plate}`,
+          messages: [
+            {
+              at: new Date().toISOString(),
+              from: "sistem",
+              text: discovery
+                ? `${input.date} ${input.time} keşif randevunuz alındı. Teklif hazır olunca Taleplerim’e iyzico ödeme linki düşer.`
+                : `${input.date} ${input.time} randevunuz iyzico ile ödendi (${amount} ₺). Giriş onayından sonra süreç başlar. İş: ${job.id}.`,
+            },
+          ],
+        }),
+        notifications: notify(s.notifications, {
+          title: discovery ? "Keşif randevusu" : "Ödemeli randevu",
+          body: `${appt.id} · ${input.name} · ${service.name}`,
+          href: `/yonetici/isler/${job.id}`,
+        }),
+      };
+    });
+    return created;
   }, []);
 
   const createRoadside = useCallback<Store["createRoadside"]>((input) => {
@@ -908,11 +922,16 @@ export function StoreProvider({ children }: { children: ReactNode }) {
   }, []);
 
   const claimCoupon = useCallback((code: string) => {
-    const camp = CAMPAIGNS.find((c) => c.couponCode === code);
-    if (!camp) return false;
+    let ok = false;
     setState((s) => {
+      const camp = s.cms.campaigns.find((c) => c.couponCode === code && c.active);
+      if (!camp) return s;
       const cid = s.session.customerId ?? "c-demo";
-      if (s.coupons.some((c) => c.code === code && c.customerId === cid && c.status === "aktif")) return s;
+      if (s.coupons.some((c) => c.code === code && c.customerId === cid && c.status === "aktif")) {
+        ok = true;
+        return s;
+      }
+      ok = true;
       return {
         ...s,
         coupons: [
@@ -922,8 +941,8 @@ export function StoreProvider({ children }: { children: ReactNode }) {
             code: camp.couponCode,
             title: camp.title,
             rule: camp.blurb,
-            expires: "2026-12-31",
-            status: "aktif",
+            expires: camp.ends || "2026-12-31",
+            status: "aktif" as const,
           },
           ...s.coupons,
         ],
@@ -934,7 +953,7 @@ export function StoreProvider({ children }: { children: ReactNode }) {
         }),
       };
     });
-    return true;
+    return ok;
   }, []);
 
   const setNotifPrefs = useCallback((p: { campaignNotif?: boolean; couponNotif?: boolean }) => {
@@ -943,6 +962,32 @@ export function StoreProvider({ children }: { children: ReactNode }) {
       campaignNotif: p.campaignNotif ?? s.campaignNotif,
       couponNotif: p.couponNotif ?? s.couponNotif,
     }));
+  }, []);
+
+  const setCms = useCallback((cms: SiteCms) => {
+    setState((s) => ({ ...s, cms }));
+  }, []);
+
+  const patchCms = useCallback((patch: Partial<SiteCms>) => {
+    setState((s) => ({ ...s, cms: { ...s.cms, ...patch } }));
+  }, []);
+
+  const createOwnerCoupon = useCallback<Store["createOwnerCoupon"]>((input) => {
+    const row: Coupon = {
+      id: uid("CP"),
+      customerId: input.customerId || "c-demo",
+      code: input.code.toUpperCase(),
+      title: input.title,
+      rule: input.rule,
+      expires: input.expires,
+      status: "aktif",
+    };
+    setState((s) => ({ ...s, coupons: [row, ...s.coupons] }));
+    return row;
+  }, []);
+
+  const deleteCoupon = useCallback((id: string) => {
+    setState((s) => ({ ...s, coupons: s.coupons.filter((c) => c.id !== id) }));
   }, []);
 
   useEffect(() => {
@@ -978,6 +1023,10 @@ export function StoreProvider({ children }: { children: ReactNode }) {
       markAllNotificationsRead,
       claimCoupon,
       setNotifPrefs,
+      setCms,
+      patchCms,
+      createOwnerCoupon,
+      deleteCoupon,
     }),
     [
       state,
@@ -1005,6 +1054,10 @@ export function StoreProvider({ children }: { children: ReactNode }) {
       markAllNotificationsRead,
       claimCoupon,
       setNotifPrefs,
+      setCms,
+      patchCms,
+      createOwnerCoupon,
+      deleteCoupon,
     ],
   );
 

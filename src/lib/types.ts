@@ -248,4 +248,5 @@ export type AppState = {
   coupons: Coupon[];
   campaignNotif: boolean;
   couponNotif: boolean;
+  cms: import("./site-cms").SiteCms;
 };
