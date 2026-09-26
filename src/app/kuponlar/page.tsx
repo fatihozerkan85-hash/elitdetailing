@@ -13,7 +13,7 @@ export default function KuponlarPage() {
   const { coupons, session } = useStore();
   const me = useMe();
   const mine = coupons.filter((c) =>
-    session.customerId ? c.customerId === session.customerId : c.customerId === "c-demo",
+    session.role === "customer" && session.customerId ? c.customerId === session.customerId : false,
   );
   const by = (st: string) => mine.filter((c) => c.status === st);
 

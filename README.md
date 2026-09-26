@@ -52,10 +52,25 @@ Veri: `localStorage` anahtarı `elit-detailing-v4`.
 
 SMTP yoksa e-postalar mock’tur (`/api/email`). Canlı için `RESEND_API_KEY` + `EMAIL_FROM`.
 
+## Sizin yapmanız gerekenler (canlı)
+
+Site özellikleri iyzico **hariç** mock/link ile çalışır. Gerçek gönderim ve tahsilat için Vercel → Project → Settings → Environment Variables:
+
+| Ne | Değişkenler | Not |
+|----|-------------|-----|
+| Gerçek e-posta | `RESEND_API_KEY`, `EMAIL_FROM` | Resend hesabı; doğrulanmış gönderen domain |
+| WhatsApp Cloud API (opsiyonel) | `WHATSAPP_TOKEN`, `WHATSAPP_PHONE_NUMBER_ID` | Yoksa panel `wa.me` linki açar — bu da çalışır |
+| Gerçek iyzico | `IYZICO_API_KEY`, `IYZICO_SECRET_KEY`, `IYZICO_BASE_URL` | İstediğinizde; şimdilik mock yeterli |
+| Yönetici PIN | Panel → **Sistem** | Demo `2580` yerine kendi PIN’iniz |
+
+**Önemli:** Müşteri/iş verisi şu an tarayıcı `localStorage`’ında. Aynı bilgisayarda demo tam çalışır; farklı telefonlar/panel aynı veriyi paylaşmaz. Ortak canlı veritabanı isterseniz ayrıca söylenmeli.
+
+Durum kontrolü: `/yonetici/ayarlar` veya `GET /api/status`.
+
 ## Sayfalar
 
 Müşteri: `/` `/giris` `/profil` `/sifremi-unuttum` `/randevu` `/yol-yardim` `/takip` `/aksesuar` `/kampanyalar` `/odeme/*` …
 
-Yönetici: `/yonetici` → `/panel` — e-posta/WhatsApp kuyrukları, iyzico ödeme linki, CMS.
+Yönetici: `/yonetici` — CMS, kuyruklar, kampanya e-postası, Sistem ayarları.
 
 Next.js + TypeScript + Tailwind v4 + shadcn/ui.

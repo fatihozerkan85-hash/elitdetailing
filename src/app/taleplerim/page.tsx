@@ -16,7 +16,7 @@ export default function TaleplerimPage() {
   const mine =
     session.role === "customer" && session.customerId
       ? inbox.filter((i) => i.customerId === session.customerId)
-      : inbox.filter((i) => i.customerId === "c-demo");
+      : [];
 
   return (
     <CustomerPanel

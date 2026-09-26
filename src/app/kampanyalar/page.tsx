@@ -8,7 +8,7 @@ import { LoadingBlock } from "@/components/site-header";
 import { useStore } from "@/lib/store";
 
 export default function KampanyalarPage() {
-  const { claimCoupon, cms, ready } = useStore();
+  const { claimCoupon, cms, ready, session } = useStore();
   if (!ready) return <PublicShell><LoadingBlock /></PublicShell>;
   const list = cms.campaigns.filter((c) => c.active);
 
@@ -32,8 +32,13 @@ export default function KampanyalarPage() {
                 <Button
                   size="sm"
                   onClick={() => {
-                    const ok = claimCoupon(c.couponCode);
-                    toast.success(ok ? "Kupon cüzdana eklendi" : "Kupon alınamadı", { description: c.couponCode });
+                    if (session.role !== "customer") {
+                      toast.message("Kupon almak için giriş yapın");
+                      return;
+                    }
+                    const res = claimCoupon(c.couponCode);
+                    if (res.ok) toast.success(res.message, { description: c.couponCode });
+                    else toast.error(res.message);
                   }}
                 >
                   Kuponu al

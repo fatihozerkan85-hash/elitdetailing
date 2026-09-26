@@ -15,6 +15,7 @@ import {
   buildAccountChangedEmail,
   buildAccessoryOrderEmail,
   buildAppointmentReceiptEmail,
+  buildCampaignEmail,
   buildCouponEmail,
   buildPasswordChangedEmail,
   buildPasswordResetEmail,
@@ -147,10 +148,12 @@ type Store = AppState & {
   updateOrderStatus: (id: string, status: AccessoryOrder["status"]) => void;
   markInboxRead: (id: string) => void;
   markAllNotificationsRead: () => void;
-  claimCoupon: (code: string) => boolean;
+  claimCoupon: (code: string) => { ok: boolean; message: string };
   setNotifPrefs: (p: { campaignNotif?: boolean; couponNotif?: boolean }) => void;
   setCms: (cms: SiteCms) => void;
   patchCms: (patch: Partial<SiteCms>) => void;
+  broadcastCampaign: (campaignId: string) => { ok: boolean; sent: number; message: string };
+  setOwnerPin: (currentPin: string, newPin: string) => { ok: boolean; message: string };
   createOwnerCoupon: (input: {
     code: string;
     title: string;
@@ -329,6 +332,7 @@ export function StoreProvider({ children }: { children: ReactNode }) {
               }),
               campaignNotif: parsed.campaignNotif ?? true,
               couponNotif: parsed.couponNotif ?? true,
+              ownerPin: parsed.ownerPin || seed.ownerPin || DEMO.ownerPin,
               session: current.session.role !== "guest" ? current.session : (parsed.session ?? seed.session),
             };
             return merged;
@@ -609,13 +613,14 @@ export function StoreProvider({ children }: { children: ReactNode }) {
   }, []);
 
   const loginOwner = useCallback((pin: string) => {
-    if (pin.trim() !== DEMO.ownerPin) return false;
+    let ok = false;
     setState((s) => {
-      const next = { ...s, session: { role: "owner" as const, name: "İşletme sahibi" } };
-      persist(next);
-      return next;
+      const expected = s.ownerPin || DEMO.ownerPin;
+      if (pin.trim() !== expected) return s;
+      ok = true;
+      return { ...s, session: { role: "owner" as const, name: "İşletme sahibi" } };
     });
-    return true;
+    return ok;
   }, []);
 
   const logout = useCallback(() => {
@@ -784,10 +789,17 @@ export function StoreProvider({ children }: { children: ReactNode }) {
         ],
       };
       created = call;
+      const waText = statusWhatsAppText({
+        plate: call.plate,
+        service: "Yol yardım",
+        body: `Talebiniz alındı (${input.urgency}). Ekip yönlendiriliyor. Ödeme iş bitince iyzico linki ile alınır.`,
+      });
+      const wa = pushWhatsApp(s.whatsappOutbox, { phone: input.phone, text: waText, jobId: call.id });
       return {
         ...s,
         customers,
         roadside: [call, ...s.roadside],
+        whatsappOutbox: wa.outbox,
         inbox: pushInbox(s.inbox, {
           customerId: customer.id,
           kind: "yol-yardim",
@@ -797,7 +809,9 @@ export function StoreProvider({ children }: { children: ReactNode }) {
             {
               at: new Date().toISOString(),
               from: "sistem",
-              text: `${call.id} alındı (${input.urgency}). ${input.lat != null && input.lng != null ? "GPS konumu eklendi. " : ""}Ekip yönlendirilir; ödeme iyzico linki ile sonradan alınır.`,
+              channel: "whatsapp",
+              waUrl: wa.item.url,
+              text: waText,
             },
           ],
         }),
@@ -1492,17 +1506,23 @@ export function StoreProvider({ children }: { children: ReactNode }) {
     }));
   }, []);
 
-  const claimCoupon = useCallback((code: string) => {
-    let ok = false;
+  const claimCoupon = useCallback<Store["claimCoupon"]>((code) => {
+    let result = { ok: false, message: "Giriş yapın" };
     setState((s) => {
-      const camp = s.cms.campaigns.find((c) => c.couponCode === code && c.active);
-      if (!camp) return s;
-      const cid = s.session.customerId ?? "c-demo";
-      if (s.coupons.some((c) => c.code === code && c.customerId === cid && c.status === "aktif")) {
-        ok = true;
+      if (!s.session.customerId) {
+        result = { ok: false, message: "Kupon almak için giriş yapın" };
         return s;
       }
-      ok = true;
+      const camp = s.cms.campaigns.find((c) => c.couponCode === code && c.active);
+      if (!camp) {
+        result = { ok: false, message: "Kampanya bulunamadı" };
+        return s;
+      }
+      const cid = s.session.customerId;
+      if (s.coupons.some((c) => c.code === code && c.customerId === cid && c.status === "aktif")) {
+        result = { ok: true, message: "Bu kupon zaten cüzdanınızda" };
+        return s;
+      }
       const discountPercent = inferDiscountPercent(camp.couponCode, camp.blurb) ?? 10;
       const cust = s.customers.find((c) => c.id === cid);
       let emailOutbox = s.emailOutbox ?? [];
@@ -1518,6 +1538,7 @@ export function StoreProvider({ children }: { children: ReactNode }) {
           }),
         ).outbox;
       }
+      result = { ok: true, message: "Kupon cüzdana eklendi" };
       return {
         ...s,
         emailOutbox,
@@ -1542,7 +1563,7 @@ export function StoreProvider({ children }: { children: ReactNode }) {
         }),
       };
     });
-    return ok;
+    return result;
   }, []);
 
   const setNotifPrefs = useCallback((p: { campaignNotif?: boolean; couponNotif?: boolean }) => {
@@ -1559,6 +1580,61 @@ export function StoreProvider({ children }: { children: ReactNode }) {
 
   const patchCms = useCallback((patch: Partial<SiteCms>) => {
     setState((s) => ({ ...s, cms: { ...s.cms, ...patch } }));
+  }, []);
+
+  const broadcastCampaign = useCallback<Store["broadcastCampaign"]>((campaignId) => {
+    let result = { ok: false, sent: 0, message: "Kampanya bulunamadı" };
+    setState((s) => {
+      const camp = s.cms.campaigns.find((c) => c.id === campaignId);
+      if (!camp) return s;
+      const recipients = s.customers.filter((c) => c.email && c.email.includes("@"));
+      if (!recipients.length) {
+        result = { ok: false, sent: 0, message: "E-postası olan müşteri yok" };
+        return s;
+      }
+      let emailOutbox = s.emailOutbox ?? [];
+      for (const cust of recipients) {
+        emailOutbox = enqueueEmail(
+          emailOutbox,
+          buildCampaignEmail({
+            name: cust.name,
+            email: cust.email!,
+            title: camp.title,
+            blurb: `${camp.blurb}\nKupon: ${camp.couponCode} · ${camp.ends}`,
+          }),
+        ).outbox;
+      }
+      result = {
+        ok: true,
+        sent: recipients.length,
+        message: `${recipients.length} müşteriye kampanya e-postası kuyruğa alındı`,
+      };
+      return {
+        ...s,
+        emailOutbox,
+        notifications: notify(s.notifications, {
+          title: "Kampanya e-postası",
+          body: `${camp.title} · ${recipients.length} alıcı`,
+          href: "/yonetici/bildirimler",
+          audience: "owner",
+        }),
+      };
+    });
+    return result;
+  }, []);
+
+  const setOwnerPin = useCallback<Store["setOwnerPin"]>((currentPin, newPin) => {
+    if (!newPin || newPin.length < 4) {
+      return { ok: false, message: "Yeni PIN en az 4 karakter olmalı" };
+    }
+    let result = { ok: false, message: "Mevcut PIN hatalı" };
+    setState((s) => {
+      const expected = s.ownerPin || DEMO.ownerPin;
+      if (currentPin !== expected) return s;
+      result = { ok: true, message: "PIN güncellendi" };
+      return { ...s, ownerPin: newPin };
+    });
+    return result;
   }, []);
 
   const createOwnerCoupon = useCallback<Store["createOwnerCoupon"]>((input) => {
@@ -1619,12 +1695,13 @@ export function StoreProvider({ children }: { children: ReactNode }) {
   const redeemCoupon = useCallback<Store["redeemCoupon"]>((code, baseAmount, customerId) => {
     // Preview only — status flips to kullanildi after paid checkout
     const s = state;
-    const cid = customerId || s.session.customerId || "c-demo";
+    const cid = customerId || s.session.customerId;
+    if (!cid) return null;
     const coupon = s.coupons.find(
       (c) =>
         c.code.toUpperCase() === code.toUpperCase() &&
         c.status === "aktif" &&
-        (c.customerId === cid || c.customerId === "c-demo"),
+        c.customerId === cid,
     );
     if (!coupon) return null;
     const discount = couponOffAmount(coupon, baseAmount);
@@ -1885,6 +1962,8 @@ export function StoreProvider({ children }: { children: ReactNode }) {
       setNotifPrefs,
       setCms,
       patchCms,
+      broadcastCampaign,
+      setOwnerPin,
       createOwnerCoupon,
       deleteCoupon,
       updateCouponStatus,
@@ -1937,6 +2016,8 @@ export function StoreProvider({ children }: { children: ReactNode }) {
       setNotifPrefs,
       setCms,
       patchCms,
+      broadcastCampaign,
+      setOwnerPin,
       createOwnerCoupon,
       deleteCoupon,
       updateCouponStatus,

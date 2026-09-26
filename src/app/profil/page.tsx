@@ -265,6 +265,7 @@ export default function ProfilPage() {
         className="h-11 w-full"
         variant="outline"
         onClick={() => {
+          if (!window.confirm("Çıkış yapmak istediğinize emin misiniz?")) return;
           logout();
           router.push("/");
         }}

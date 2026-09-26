@@ -1,4 +1,4 @@
-import { ACCESSORIES, SERVICES } from "./catalog";
+import { ACCESSORIES, DEMO, SERVICES } from "./catalog";
 import { DEMO_CUSTOMER_PASSWORD, hashPassword } from "./auth";
 import { minutesAgo, todayISO } from "./format";
 import { cloneAccessories, hydrateCustomer } from "./ops";
@@ -379,6 +379,7 @@ export function buildSeed(): AppState {
     ],
     campaignNotif: true,
     couponNotif: true,
+    ownerPin: DEMO.ownerPin,
     cms: buildDefaultCms(),
   };
 }

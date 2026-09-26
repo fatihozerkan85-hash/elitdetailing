@@ -48,7 +48,11 @@ function LoginInner() {
           <Button className="h-11" onClick={goIn}>
             Panele git
           </Button>
-          <Button className="h-11" variant="outline" onClick={logout}>
+          <Button className="h-11" variant="outline" onClick={() => {
+            if (!window.confirm("Çıkış yapmak istediğinize emin misiniz?")) return;
+            logout();
+            router.push("/");
+          }}>
             Çıkış
           </Button>
         </div>

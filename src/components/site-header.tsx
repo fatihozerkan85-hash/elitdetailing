@@ -2,8 +2,8 @@
 
 import Image from "next/image";
 import Link from "next/link";
-import { usePathname } from "next/navigation";
-import { Menu, Shield, Siren } from "lucide-react";
+import { usePathname, useRouter } from "next/navigation";
+import { LogOut, Menu, Shield, Siren } from "lucide-react";
 import type { ReactNode } from "react";
 import { buttonVariants } from "@/components/ui/button";
 import { Sheet, SheetContent, SheetHeader, SheetTitle, SheetTrigger } from "@/components/ui/sheet";
@@ -38,15 +38,29 @@ export function BrandMark({ href = "/" }: { href?: string }) {
   );
 }
 
+function confirmLogout(logout: () => void, goHome: () => void) {
+  if (typeof window === "undefined") return;
+  const ok = window.confirm("Çıkış yapmak istediğinize emin misiniz?");
+  if (!ok) return;
+  logout();
+  goHome();
+}
+
 export function SiteHeader({ variant = "public" }: { variant?: "public" | "panel" }) {
   const path = usePathname();
-  const { session, inbox, notifications } = useStore();
-  const unreadInbox = inbox.filter((i) => {
-    if (!i.unread) return false;
-    if (session.role === "customer") return i.customerId === session.customerId;
-    return true;
-  }).length;
+  const router = useRouter();
+  const { session, inbox, notifications, logout, ready } = useStore();
+  const isCustomer = ready && session.role === "customer" && Boolean(session.customerId);
+  const customerName = isCustomer ? session.name.trim() : "";
+
+  const unreadInbox = isCustomer
+    ? inbox.filter((i) => i.unread && i.customerId === session.customerId).length
+    : 0;
   const unreadN = notifications.filter((n) => !n.read).length;
+
+  function handleLogout() {
+    confirmLogout(logout, () => router.push("/"));
+  }
 
   return (
     <header className="sticky top-0 z-40 border-b border-white/10 bg-[#0b0c0e]/90 backdrop-blur-md">
@@ -83,13 +97,38 @@ export function SiteHeader({ variant = "public" }: { variant?: "public" | "panel
                 <Siren className="size-3.5" />
                 Acil
               </Link>
-              <Link
-                href={session.role === "customer" ? "/profil" : "/giris"}
-                className={cn(buttonVariants({ variant: "outline", size: "sm" }))}
-              >
-                <Shield className="size-3.5" />
-                {session.role === "customer" ? session.name.split(" ")[0] : "Giriş"}
-              </Link>
+              {isCustomer ? (
+                <div className="flex items-center gap-1.5 sm:gap-2">
+                  <Link
+                    href="/profil"
+                    className="hidden max-w-[14rem] flex-col items-end rounded-lg border border-amber-500/25 bg-amber-500/5 px-2.5 py-1.5 text-right transition hover:border-amber-400/40 sm:flex"
+                  >
+                    <span className="text-[10px] tracking-[0.14em] text-amber-300/70 uppercase">Hoşgeldin</span>
+                    <span className="truncate text-[13px] font-medium leading-tight text-amber-100">{customerName}</span>
+                  </Link>
+                  <Link
+                    href="/profil"
+                    className={cn(buttonVariants({ variant: "outline", size: "sm" }), "sm:hidden")}
+                  >
+                    <Shield className="size-3.5" />
+                    Profil
+                  </Link>
+                  <button
+                    type="button"
+                    onClick={handleLogout}
+                    className={cn(buttonVariants({ variant: "ghost", size: "sm" }))}
+                    aria-label="Çıkış yap"
+                  >
+                    <LogOut className="size-3.5" />
+                    <span className="hidden md:inline">Çıkış</span>
+                  </button>
+                </div>
+              ) : (
+                <Link href="/giris" className={cn(buttonVariants({ variant: "outline", size: "sm" }))}>
+                  <Shield className="size-3.5" />
+                  Giriş
+                </Link>
+              )}
               <Sheet>
                 <SheetTrigger className={cn(buttonVariants({ variant: "ghost", size: "icon" }), "lg:hidden")}>
                   <Menu />
@@ -99,20 +138,41 @@ export function SiteHeader({ variant = "public" }: { variant?: "public" | "panel
                     <SheetTitle>Menü</SheetTitle>
                   </SheetHeader>
                   <div className="mt-4 flex flex-col gap-1 px-2">
+                    {isCustomer ? (
+                      <div className="mb-2 rounded-lg border border-amber-500/25 bg-amber-500/5 px-3 py-2.5">
+                        <p className="text-[10px] tracking-[0.14em] text-amber-300/70 uppercase">Hoşgeldin</p>
+                        <p className="text-sm font-medium text-amber-100">{customerName}</p>
+                      </div>
+                    ) : null}
                     {links.map((l) => (
                       <Link key={l.href} href={l.href} className="rounded-md px-3 py-2 text-sm hover:bg-white/5">
                         {l.label}
+                        {l.href === "/taleplerim" && unreadInbox > 0 ? (
+                          <span className="ml-2 rounded-full bg-amber-400 px-1.5 text-[10px] text-black">{unreadInbox}</span>
+                        ) : null}
                       </Link>
                     ))}
-                    <Link href="/bildirimler" className="rounded-md px-3 py-2 text-sm hover:bg-white/5">
-                      Bildirimler
-                    </Link>
-                    <Link href="/profil" className="rounded-md px-3 py-2 text-sm hover:bg-white/5">
-                      Profil
-                    </Link>
-                    <Link href="/giris" className="rounded-md px-3 py-2 text-sm hover:bg-white/5">
-                      Giriş
-                    </Link>
+                    {isCustomer ? (
+                      <>
+                        <Link href="/bildirimler" className="rounded-md px-3 py-2 text-sm hover:bg-white/5">
+                          Bildirimler
+                        </Link>
+                        <Link href="/profil" className="rounded-md px-3 py-2 text-sm hover:bg-white/5">
+                          Profil
+                        </Link>
+                        <button
+                          type="button"
+                          className="rounded-md px-3 py-2 text-left text-sm text-red-300 hover:bg-white/5"
+                          onClick={handleLogout}
+                        >
+                          Çıkış yap
+                        </button>
+                      </>
+                    ) : (
+                      <Link href="/giris" className="rounded-md px-3 py-2 text-sm hover:bg-white/5">
+                        Giriş
+                      </Link>
+                    )}
                   </div>
                 </SheetContent>
               </Sheet>

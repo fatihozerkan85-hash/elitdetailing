@@ -1,5 +1,6 @@
 "use client";
 
+import { useState } from "react";
 import { toast } from "sonner";
 import { PanelShell } from "@/components/panel-shell";
 import { Button } from "@/components/ui/button";
@@ -11,7 +12,7 @@ import { useStore } from "@/lib/store";
 import type { CmsCampaign } from "@/lib/site-cms";
 
 export default function PanelKampanyalar() {
-  const { cms, patchCms } = useStore();
+  const { cms, patchCms, broadcastCampaign } = useStore();
   const campaigns = cms.campaigns;
 
   function update(id: string, patch: Partial<CmsCampaign>) {
@@ -23,7 +24,9 @@ export default function PanelKampanyalar() {
       <div className="flex flex-wrap items-center justify-between gap-3">
         <div>
           <h1 className="font-[family-name:var(--font-display)] text-3xl uppercase">Kampanyalar</h1>
-          <p className="mt-1 text-sm text-zinc-400">/kampanyalar sayfası listesi ve kupon kodları.</p>
+          <p className="mt-1 text-sm text-zinc-400">
+            /kampanyalar listesi, kupon kodları ve e-posta duyurusu.
+          </p>
         </div>
         <Button
           onClick={() => {
@@ -50,14 +53,27 @@ export default function PanelKampanyalar() {
       <div className="mt-6 grid gap-4 md:grid-cols-2">
         {campaigns.map((c) => (
           <div key={c.id} className="rounded-xl border border-amber-500/20 bg-zinc-900/40 p-4">
-            <div className="mb-3 flex justify-between">
+            <div className="mb-3 flex flex-wrap justify-between gap-2">
               <label className="flex items-center gap-2 text-sm">
                 <input type="checkbox" checked={c.active} onChange={(e) => update(c.id, { active: e.target.checked })} />
                 Aktif
               </label>
-              <Button size="sm" variant="destructive" onClick={() => patchCms({ campaigns: campaigns.filter((x) => x.id !== c.id) })}>
-                Sil
-              </Button>
+              <div className="flex gap-2">
+                <Button
+                  size="sm"
+                  variant="outline"
+                  onClick={() => {
+                    const res = broadcastCampaign(c.id);
+                    if (res.ok) toast.success(res.message);
+                    else toast.error(res.message);
+                  }}
+                >
+                  E-posta gönder
+                </Button>
+                <Button size="sm" variant="destructive" onClick={() => patchCms({ campaigns: campaigns.filter((x) => x.id !== c.id) })}>
+                  Sil
+                </Button>
+              </div>
             </div>
             <div className="grid gap-2">
               <div className="grid gap-1">

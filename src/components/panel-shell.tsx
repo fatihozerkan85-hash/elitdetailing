@@ -42,6 +42,7 @@ const nav = [
   { href: `${ADMIN_PATH}/kuponlar`, label: "Kuponlar", icon: Ticket },
   { href: `${ADMIN_PATH}/gelir`, label: "Gelir", icon: Wallet },
   { href: `${ADMIN_PATH}/bildirimler`, label: "Bildirimler", icon: Bell },
+  { href: `${ADMIN_PATH}/ayarlar`, label: "Sistem", icon: Settings2 },
 ];
 
 function AdminPinForm() {

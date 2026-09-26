@@ -279,5 +279,7 @@ export type AppState = {
   coupons: Coupon[];
   campaignNotif: boolean;
   couponNotif: boolean;
+  /** Owner panel PIN — changeable in /yonetici/ayarlar */
+  ownerPin: string;
   cms: import("./site-cms").SiteCms;
 };
