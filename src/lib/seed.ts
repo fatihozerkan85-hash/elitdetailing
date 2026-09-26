@@ -49,11 +49,12 @@ const technicians: Technician[] = [
   { id: "t-elif", name: "Elif Aksoy", role: "Karşılama / kasa", load: 1, shift: "08:30–20:00" },
 ];
 
-function shopJob(partial: Omit<Job, "segments" | "currentSegmentIndex" | "notifiedSegmentIndex"> & Partial<Pick<Job, "segments" | "currentSegmentIndex" | "notifiedSegmentIndex">>): Job {
+function shopJob(partial: Omit<Job, "segments" | "currentSegmentIndex" | "notifiedSegmentIndex" | "paymentStatus"> & Partial<Pick<Job, "segments" | "currentSegmentIndex" | "notifiedSegmentIndex" | "paymentStatus" | "paymentId">>): Job {
   const segments = partial.segments ?? segmentsFor(partial.serviceId);
   return {
     currentSegmentIndex: partial.startedAt ? 0 : -1,
     notifiedSegmentIndex: partial.startedAt ? 0 : -1,
+    paymentStatus: partial.paymentStatus ?? "odendi",
     ...partial,
     segments,
   };
@@ -196,6 +197,8 @@ export function buildSeed(): AppState {
         time: "16:30",
         notes: "Akşam teslim.",
         status: "onaylandi",
+        paymentStatus: "odendi",
+        amount: 900,
         createdAt: minutesAgo(90),
       },
       {
@@ -211,6 +214,8 @@ export function buildSeed(): AppState {
         time: "09:00",
         notes: "Demo takip kaydı.",
         status: "onaylandi",
+        paymentStatus: "odendi",
+        amount: 650,
         createdAt: minutesAgo(8),
       },
       {
@@ -226,6 +231,8 @@ export function buildSeed(): AppState {
         time: "10:30",
         notes: "",
         status: "bekliyor",
+        paymentStatus: "kesif",
+        amount: 0,
         createdAt: minutesAgo(120),
       },
     ],
@@ -242,6 +249,8 @@ export function buildSeed(): AppState {
         urgency: "yuksek",
         status: "yolda",
         technicianId: "t-burak",
+        paymentStatus: "bekliyor",
+        amount: 750,
         createdAt: minutesAgo(22),
         updatedAt: minutesAgo(9),
         timeline: [
@@ -261,6 +270,8 @@ export function buildSeed(): AppState {
         issue: "Kontak açılmıyor, farlar zayıf.",
         urgency: "kritik",
         status: "alindi",
+        paymentStatus: "bekliyor",
+        amount: 650,
         createdAt: minutesAgo(6),
         updatedAt: minutesAgo(6),
         timeline: [{ at: minutesAgo(6), status: "alindi", note: "Kritik öncelik — akü takviye talebi." }],
@@ -278,9 +289,28 @@ export function buildSeed(): AppState {
         total: ACCESSORIES[0].price,
         notes: "BMW 5.20i 2021.",
         status: "hazirlaniyor",
+        paymentStatus: "odendi",
         createdAt: minutesAgo(50),
       },
     ],
+    payments: [
+      {
+        id: "PAY-1",
+        kind: "randevu",
+        refId: "RDV-221",
+        amount: 650,
+        status: "odendi",
+        provider: "mock",
+        providerPaymentId: "MOCK-SEED-1",
+        conversationId: "seed-rdv-221",
+        title: "İç + dış yıkama",
+        customerName: "Demo Müşteri",
+        phone: "05551234567",
+        createdAt: minutesAgo(8),
+        paidAt: minutesAgo(8),
+      },
+    ],
+    cart: [],
     inbox: [
       {
         id: "INB-1",

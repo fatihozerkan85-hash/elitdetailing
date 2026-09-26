@@ -14,6 +14,31 @@ export type AppointmentStatus = "bekliyor" | "onaylandi" | "tamamlandi" | "iptal
 
 export type OrderStatus = "talep" | "hazirlaniyor" | "hazir" | "teslim" | "iptal";
 
+export type PaymentStatus = "bekliyor" | "odendi" | "iade" | "kesif" | "basarisiz";
+
+export type PaymentKind = "randevu" | "aksesuar" | "kampanya" | "teklif" | "yol-yardim";
+
+export type PaymentRecord = {
+  id: string;
+  kind: PaymentKind;
+  refId: string;
+  amount: number;
+  status: PaymentStatus;
+  provider: "iyzico" | "mock";
+  providerPaymentId?: string;
+  conversationId: string;
+  title: string;
+  customerName: string;
+  phone: string;
+  createdAt: string;
+  paidAt?: string;
+};
+
+export type CartLine = {
+  accessoryId: string;
+  qty: number;
+};
+
 export type ServiceCategory =
   | "yikama"
   | "lastik"
@@ -87,6 +112,8 @@ export type Job = {
   serviceName: string;
   notes: string;
   estimate: number;
+  paymentStatus: PaymentStatus;
+  paymentId?: string;
   status: JobStatus;
   technicianId: string;
   appointmentId?: string;
@@ -112,6 +139,9 @@ export type Appointment = {
   time: string;
   notes: string;
   status: AppointmentStatus;
+  paymentStatus: PaymentStatus;
+  paymentId?: string;
+  amount: number;
   createdAt: string;
 };
 
@@ -130,6 +160,9 @@ export type RoadsideCall = {
   urgency: Urgency;
   status: RoadsideStatus;
   technicianId?: string;
+  paymentStatus: PaymentStatus;
+  paymentId?: string;
+  amount: number;
   createdAt: string;
   updatedAt: string;
   timeline: TimelineEvent[];
@@ -146,6 +179,8 @@ export type AccessoryOrder = {
   total: number;
   notes: string;
   status: OrderStatus;
+  paymentStatus: PaymentStatus;
+  paymentId?: string;
   createdAt: string;
 };
 
@@ -205,6 +240,8 @@ export type AppState = {
   appointments: Appointment[];
   roadside: RoadsideCall[];
   accessoryOrders: AccessoryOrder[];
+  payments: PaymentRecord[];
+  cart: CartLine[];
   inbox: InboxItem[];
   notifications: Notification[];
   whatsappOutbox: WhatsAppOutboxItem[];

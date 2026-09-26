@@ -58,6 +58,8 @@ export function slotConflicts(
   const end = start + occupancyMin(svc);
   return appointments.some((a) => {
     if (a.date !== date || a.status === "iptal" || a.id === ignoreId) return false;
+    // Ödenmemiş / başarısız kayıt slot kilitlemez
+    if (a.paymentStatus === "basarisiz") return false;
     const span = appointmentSpan(a);
     return start < span.end && end > span.start;
   });

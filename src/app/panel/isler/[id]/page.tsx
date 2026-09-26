@@ -2,15 +2,19 @@
 
 import Link from "next/link";
 import { useParams } from "next/navigation";
+import { useState } from "react";
+import { toast } from "sonner";
 import { PanelShell } from "@/components/panel-shell";
 import { GeoLink } from "@/components/geo-link";
 import { EmptyState } from "@/components/site-header";
 import { JobPipeline, StatusBadge } from "@/components/status-badge";
 import { Button } from "@/components/ui/button";
-import { JOB_FLOW, JOB_STATUS_LABEL, ROADSIDE_STATUS_LABEL } from "@/lib/catalog";
+import { Input } from "@/components/ui/input";
+import { JOB_FLOW, JOB_STATUS_LABEL, PAYMENT_STATUS_LABEL, ROADSIDE_STATUS_LABEL } from "@/lib/catalog";
 import { formatDateTime, tryFormat } from "@/lib/format";
 import { jobClock } from "@/lib/process";
 import { useStore } from "@/lib/store";
+import { waMeUrl } from "@/lib/whatsapp";
 import type { JobStatus, RoadsideStatus } from "@/lib/types";
 
 const RS_FLOW: RoadsideStatus[] = ["alindi", "yonlendirildi", "yolda", "yerinde", "tamamlandi"];
@@ -20,6 +24,7 @@ export default function IsDetayPage() {
   const { jobs, roadside, technicians, customers, updateJobStatus, updateRoadsideStatus, checkInJob } = useStore();
   const job = jobs.find((j) => j.id === id);
   const call = roadside.find((r) => r.id === id);
+  const [payAmount, setPayAmount] = useState(job?.estimate || call?.amount || 650);
 
   if (!job && !call) {
     return (
@@ -31,6 +36,22 @@ export default function IsDetayPage() {
 
   const tech = technicians.find((t) => t.id === (job?.technicianId ?? call?.technicianId));
   const customer = customers.find((c) => c.id === (job?.customerId ?? call?.customerId));
+  const phone = job?.phone ?? call!.phone;
+  const paymentStatus = job?.paymentStatus ?? call!.paymentStatus;
+
+  function sendPayLink() {
+    const kind = call ? "yol-yardim" : "teklif";
+    const ref = call?.id ?? job?.appointmentId ?? job!.id;
+    const url = `${window.location.origin}/odeme/link?kind=${kind}&refId=${encodeURIComponent(ref)}&amount=${payAmount}`;
+    const text = `Elit Detailing ödeme linki (${tryFormat(payAmount)}): ${url}`;
+    window.open(waMeUrl(phone, text), "_blank", "noopener,noreferrer");
+    void fetch("/api/whatsapp", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ phone, text }),
+    });
+    toast.success("Ödeme linki hazır", { description: "WhatsApp açıldı / kuyruğa yazıldı" });
+  }
 
   return (
     <PanelShell>
@@ -52,7 +73,7 @@ export default function IsDetayPage() {
           <dd>
             {job?.customerName ?? call?.customerName}
             <br />
-            <span className="text-zinc-500">{job?.phone ?? call?.phone}</span>
+            <span className="text-zinc-500">{phone}</span>
           </dd>
         </div>
         <div>
@@ -64,11 +85,28 @@ export default function IsDetayPage() {
           <dd>{job ? tryFormat(job.estimate) : call?.urgency}</dd>
         </div>
         <div>
-          <dt className="text-zinc-500">Personel</dt>
-          <dd>{tech?.name ?? "Atanmadı"}</dd>
+          <dt className="text-zinc-500">Ödeme</dt>
+          <dd>{PAYMENT_STATUS_LABEL[paymentStatus] ?? paymentStatus}</dd>
         </div>
       </dl>
-      {customer ? <p className="mt-2 text-xs text-zinc-600">Kayıtlı müşteri: {customer.name}</p> : null}
+      {tech ? <p className="mt-2 text-xs text-zinc-600">Personel: {tech.name}</p> : null}
+      {customer ? <p className="mt-1 text-xs text-zinc-600">Kayıtlı müşteri: {customer.name}</p> : null}
+
+      {paymentStatus !== "odendi" ? (
+        <div className="mt-6 flex flex-wrap items-end gap-2 rounded-xl border border-amber-500/25 bg-zinc-900/40 p-4">
+          <div>
+            <p className="text-xs text-zinc-500">iyzico ödeme linki (₺)</p>
+            <Input
+              type="number"
+              className="mt-1 w-36"
+              value={payAmount}
+              onChange={(e) => setPayAmount(Number(e.target.value))}
+            />
+          </div>
+          <Button onClick={sendPayLink}>WhatsApp ile ödeme linki gönder</Button>
+          <p className="w-full text-xs text-zinc-500">Yol yardımda ödeme çıkışı engellemez. Keşif/teklif sonrası link gönderin.</p>
+        </div>
+      ) : null}
 
       {job ? (
         <>

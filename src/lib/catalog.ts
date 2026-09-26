@@ -463,6 +463,67 @@ export const DEMO = {
 /** Gizli işletme paneli. Kamu sitede link yok. */
 export const ADMIN_PATH = "/yonetici";
 
+/** Keşif sonrası teklif + iyzico linki (online tam fiyat çekilmez). */
+export const DISCOVERY_SERVICE_IDS = new Set(["boya-koruma"]);
+
+export function requiresDiscovery(serviceId: string) {
+  return DISCOVERY_SERVICE_IDS.has(serviceId);
+}
+
+export const PAYMENT_STATUS_LABEL: Record<string, string> = {
+  bekliyor: "Ödeme bekliyor",
+  odendi: "Ödendi (iyzico)",
+  iade: "İade",
+  kesif: "Keşif — teklif bekleniyor",
+  basarisiz: "Ödeme başarısız",
+};
+
+/** Ana sayfa kampanya bannerı — tıklanınca yalnızca iyzico. */
+export const BANNER_OFFERS = [
+  {
+    id: "1",
+    tag: "EYLÜL KAMPANYASI",
+    title: "Seramik Kaplama",
+    highlight: "%20 İndirim",
+    desc: "9H sertliğinde seramik kaplama ile aracınıza 3–5 yıl tam koruma. Sınırlı kontenjan!",
+    cta: "Hemen Öde & Randevu",
+    code: "ELIT20",
+    serviceId: "boya-koruma",
+    listPrice: 8500,
+    price: 6800,
+    image: "https://images.unsplash.com/photo-1558618666-fcd25c85cd64?w=1400&h=600&fit=crop&auto=format",
+    accent: "#C9A84C",
+  },
+  {
+    id: "2",
+    tag: "ÖZEL TEKLİF",
+    title: "Premium İç-Dış Yıkama",
+    highlight: "2 Al 1 Öde",
+    desc: "El yıkama, buharlı temizlik ve deri bakımı dahil komple detailing paketi.",
+    cta: "Paketi Satın Al",
+    code: "YIKA21",
+    serviceId: "ic-dis-yikama",
+    listPrice: 1300,
+    price: 650,
+    image: "https://images.unsplash.com/photo-1607860108855-64acf2078ed9?w=1400&h=600&fit=crop&auto=format",
+    accent: "#E8C96A",
+  },
+  {
+    id: "3",
+    tag: "YENİ HİZMET",
+    title: "PPF Film Kaplama",
+    highlight: "Ücretsiz Kenar Koruma",
+    desc: "Paint Protection Film ile boyayı çizik ve taş izlerine karşı tam kalkan.",
+    cta: "Öde & Randevu Al",
+    code: "PPF-ELIT",
+    serviceId: "boya-koruma",
+    listPrice: 12000,
+    price: 12000,
+    image: "https://images.unsplash.com/photo-1492144534655-ae79c964c9d7?w=1400&h=600&fit=crop&auto=format",
+    accent: "#C9A84C",
+  },
+] as const;
+
 export const CAMPAIGNS = [
   {
     id: "cmp-seramik",

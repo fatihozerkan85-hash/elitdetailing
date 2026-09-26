@@ -9,8 +9,9 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
-import { SERVICES } from "@/lib/catalog";
-import { addDaysISO, todayISO } from "@/lib/format";
+import { SERVICES, requiresDiscovery } from "@/lib/catalog";
+import { startIyzicoCheckout } from "@/lib/checkout-draft";
+import { addDaysISO, todayISO, tryFormat, uid } from "@/lib/format";
 import { occupancyMin } from "@/lib/process";
 import { SLOT_TIMES, slotConflicts } from "@/lib/schedule";
 import { useStore } from "@/lib/store";
@@ -18,13 +19,14 @@ import { Suspense } from "react";
 
 function Form() {
   const params = useSearchParams();
-  const preset = params.get("hizmet") ?? "ic-dis-yikama";
+  const preset = params?.get("hizmet") ?? "ic-dis-yikama";
   const bookable = SERVICES.filter((s) => s.category !== "yol-yardim");
   const { ready, session, createAppointment, appointments } = useStore();
   const router = useRouter();
   const [serviceId, setServiceId] = useState(bookable.some((s) => s.id === preset) ? preset : "ic-dis-yikama");
   const [name, setName] = useState(session.name !== "Misafir" ? session.name : "Demo Müşteri");
   const [phone, setPhone] = useState("05551234567");
+  const [email, setEmail] = useState("demo@elitdetailing.com");
   const [plate, setPlate] = useState("06 ELT 01");
   const [vehicle, setVehicle] = useState("2021 BMW 5.20i");
   const [date, setDate] = useState(todayISO());
@@ -34,10 +36,11 @@ function Form() {
   const [pending, setPending] = useState(false);
 
   const svc = useMemo(() => SERVICES.find((s) => s.id === serviceId), [serviceId]);
+  const discovery = svc ? requiresDiscovery(svc.id) : false;
 
   if (!ready) return <LoadingBlock />;
 
-  function submit(e: React.FormEvent) {
+  async function submit(e: React.FormEvent) {
     e.preventDefault();
     setError("");
     if (!name.trim() || !phone.trim() || !plate.trim()) {
@@ -49,9 +52,55 @@ function Form() {
       return;
     }
     setPending(true);
-    const appt = createAppointment({ name, phone, plate, vehicle, serviceId, date, time, notes });
-    toast.success("Randevu talebi alındı", { description: `${appt.id} · ${date} ${time}` });
-    router.push("/taleplerim");
+
+    if (discovery) {
+      const appt = createAppointment({
+        name,
+        phone,
+        plate,
+        vehicle,
+        serviceId,
+        date,
+        time,
+        notes,
+        discovery: true,
+      });
+      toast.success("Keşif randevusu alındı", { description: `${appt.id} · ödeme keşif sonrası` });
+      router.push("/taleplerim");
+      return;
+    }
+
+    if (!svc) {
+      setPending(false);
+      return;
+    }
+
+    const conversationId = uid("CHK");
+    try {
+      await startIyzicoCheckout({
+        conversationId,
+        amount: svc.fromPrice,
+        title: svc.name,
+        buyerName: name,
+        buyerPhone: phone,
+        buyerEmail: email,
+        basketItems: [{ id: svc.id, name: svc.name, category1: "Hizmet", price: svc.fromPrice }],
+        draft: {
+          conversationId,
+          kind: "randevu",
+          amount: svc.fromPrice,
+          title: svc.name,
+          buyerName: name,
+          buyerPhone: phone,
+          buyerEmail: email,
+          createdAt: new Date().toISOString(),
+          payload: { serviceId, plate, vehicle, date, time, notes },
+        },
+      });
+    } catch (err) {
+      setPending(false);
+      setError(err instanceof Error ? err.message : "Ödeme başlatılamadı");
+    }
   }
 
   return (
@@ -68,6 +117,7 @@ function Form() {
             {bookable.map((s) => (
               <option key={s.id} value={s.id} style={{ color: "#111", backgroundColor: "#fff" }}>
                 {s.name}
+                {requiresDiscovery(s.id) ? " (keşif)" : ` — ${tryFormat(s.fromPrice)}`}
               </option>
             ))}
           </select>
@@ -80,6 +130,10 @@ function Form() {
           <div className="grid gap-2">
             <Label htmlFor="phone">Telefon</Label>
             <Input id="phone" value={phone} onChange={(e) => setPhone(e.target.value)} inputMode="tel" />
+          </div>
+          <div className="grid gap-2">
+            <Label htmlFor="email">E-posta</Label>
+            <Input id="email" type="email" value={email} onChange={(e) => setEmail(e.target.value)} />
           </div>
           <div className="grid gap-2">
             <Label htmlFor="plate">Plaka</Label>
@@ -118,21 +172,38 @@ function Form() {
         </div>
         {error ? <p className="text-sm text-red-300">{error}</p> : null}
         <Button type="submit" disabled={pending} size="lg">
-          {pending ? "Gönderiliyor…" : "Randevu talep et"}
+          {pending
+            ? "İşleniyor…"
+            : discovery
+              ? "Keşif randevusu oluştur"
+              : svc
+                ? `iyzico ile ${tryFormat(svc.fromPrice)} öde`
+                : "Öde"}
         </Button>
       </div>
       <aside className="rounded-xl border border-white/10 bg-zinc-900/50 p-5 text-sm text-zinc-400 md:col-span-2">
-        <p className="text-[11px] tracking-widest text-amber-300 uppercase">Ne olur?</p>
+        <p className="text-[11px] tracking-widest text-amber-300 uppercase">Ödeme</p>
         <ol className="mt-3 list-decimal space-y-2 pl-4">
-          <li>Talep Taleplerim kutusuna düşer.</li>
-          <li>Randevu onayı slotu kilitler; saat gelince süreç başlamaz.</li>
-          <li>Yönetici girişi onaylayınca tahmini adımlar ve bildirimler başlar.</li>
+          {discovery ? (
+            <>
+              <li>Keşif randevusu ücretsiz oluşturulur (slot kilitlenmez gibi işlenir).</li>
+              <li>Teklif sonrası yönetici iyzico linki gönderir.</li>
+              <li>Ödeme tamamlanınca randevu onaylanır.</li>
+            </>
+          ) : (
+            <>
+              <li>Tam tutar iyzico ile tahsil edilir — nakit yok.</li>
+              <li>3D başarısızsa randevu yazılmaz.</li>
+              <li>Süreç yine giriş onayından sonra başlar.</li>
+            </>
+          )}
         </ol>
         {svc ? (
           <div className="mt-4 space-y-2 text-zinc-300">
             <p>
               {svc.name}: ~{svc.durationMin} dk + {svc.bufferMin} dk tampon (defterde {occupancyMin(svc)} dk)
             </p>
+            {!discovery ? <p className="text-amber-200">{tryFormat(svc.fromPrice)}</p> : <p className="text-amber-200">Keşif — fiyat sonra</p>}
             <ul className="space-y-1 text-xs text-zinc-500">
               {svc.segments.map((seg) => (
                 <li key={seg.title}>
@@ -142,7 +213,7 @@ function Form() {
             </ul>
           </div>
         ) : null}
-        <p className="mt-3 text-xs text-zinc-600">Acil yolda kaldıysanız bu form değil, Yol yardım sayfasını kullanın.</p>
+        <p className="mt-3 text-xs text-zinc-600">Kampanya bannerı ayrı sayfada, her zaman iyzico.</p>
       </aside>
     </form>
   );
@@ -153,7 +224,9 @@ export default function RandevuPage() {
     <PublicShell>
       <div className="mx-auto max-w-6xl px-4 py-12">
         <h1 className="font-[family-name:var(--font-display)] text-4xl uppercase">Randevu</h1>
-        <p className="mt-2 max-w-xl text-sm text-zinc-400">Hizmet süresine göre boş / dolu saat. Süreç, randevu saatiyle değil giriş onayıyla başlar.</p>
+        <p className="mt-2 max-w-xl text-sm text-zinc-400">
+          Sabit fiyatlı hizmetler iyzico ile peşin. Seramik / boya koruma keşif sonrası ödenir.
+        </p>
         <div className="mt-8">
           <Suspense fallback={<LoadingBlock />}>
             <Form />

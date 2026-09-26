@@ -14,11 +14,20 @@ const announcements = [
   { emoji: '📱', text: 'Mobil Uygulamamızı İndirin, İlk Randevunuzda %10 İndirim Kazanın' },
 ];
 
-const campaigns = [
-  { id: 1, tag: 'EYLÜL KAMPANYASI', title: 'Seramik Kaplama', highlight: '%20 İndirim', desc: '9H sertliğinde seramik kaplama ile aracınıza 3–5 yıl tam koruma. Sınırlı kontenjan!', cta: 'Hemen Randevu Al', code: 'Kod: ELIT20', image: 'https://images.unsplash.com/photo-1558618666-fcd25c85cd64?w=1400&h=600&fit=crop&auto=format', accent: '#C9A84C' },
-  { id: 2, tag: 'ÖZEL TEKLİF', title: 'Premium İç-Dış Yıkama', highlight: '2 Al 1 Öde', desc: 'El yıkama, buharlı temizlik ve deri bakımı dahil komple detailing paketi.', cta: 'Paketi İncele', code: 'Eylül Sonuna Kadar', image: 'https://images.unsplash.com/photo-1607860108855-64acf2078ed9?w=1400&h=600&fit=crop&auto=format', accent: '#E8C96A' },
-  { id: 3, tag: 'YENİ HİZMET', title: 'PPF Film Kaplama', highlight: 'Ücretsiz Kenar Koruma', desc: 'Paint Protection Film ile boyayı çizik ve taş izlerine karşı tam kalkan.', cta: 'Detayları Gör', code: 'Elit Pakete Özel', image: 'https://images.unsplash.com/photo-1492144534655-ae79c964c9d7?w=1400&h=600&fit=crop&auto=format', accent: '#C9A84C' },
-];
+import { BANNER_OFFERS } from '../lib/catalog';
+
+const campaigns = BANNER_OFFERS.map((o) => ({
+  id: o.id,
+  tag: o.tag,
+  title: o.title,
+  highlight: o.highlight,
+  desc: o.desc,
+  cta: o.cta,
+  code: `Kod: ${o.code}`,
+  image: o.image,
+  accent: o.accent,
+  checkoutPath: `/odeme/kampanya?id=${o.id}`,
+}));
 
 const services = [
   { id: 1, title: 'Premium Oto Yıkama', subtitle: 'PREMIUM · EXCLUSIVE', price: '1.250 ₺', duration: '45 dk', tag: 'En Popüler', icon: '/services/premium-oto-yikama.png' },
@@ -140,7 +149,7 @@ export default function Home() {
                 <div className="font-display campaign-highlight">{c.highlight}</div>
                 <p className="campaign-desc">{c.desc}</p>
                 <div className="campaign-cta-row">
-                  <button className="btn-gold" onClick={() => navigate('/login')} style={{ padding: '12px 28px', fontSize: 13, fontWeight: 700, borderRadius: 8, letterSpacing: '0.06em', fontFamily: 'Barlow Condensed, sans-serif' }}>{c.cta} →</button>
+                  <button className="btn-gold" onClick={() => navigate(c.checkoutPath)} style={{ padding: '12px 28px', fontSize: 13, fontWeight: 700, borderRadius: 8, letterSpacing: '0.06em', fontFamily: 'Barlow Condensed, sans-serif' }}>{c.cta} →</button>
                   <span className="campaign-code">{c.code}</span>
                 </div>
                 <div style={{ marginTop: 32, height: 3, width: 60, borderRadius: 2, background: `linear-gradient(90deg, ${c.accent}, transparent)` }}/>

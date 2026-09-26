@@ -9,7 +9,7 @@ import {
   useState,
   type ReactNode,
 } from "react";
-import { ACCESSORIES, CAMPAIGNS, DEMO, JOB_STATUS_LABEL, ROADSIDE_STATUS_LABEL, SERVICES } from "./catalog";
+import { ACCESSORIES, CAMPAIGNS, DEMO, JOB_STATUS_LABEL, ROADSIDE_STATUS_LABEL, SERVICES, requiresDiscovery } from "./catalog";
 import { uid } from "./format";
 import { jobClock, hydrateJob, segmentsFor } from "./process";
 import { buildSeed } from "./seed";
@@ -18,16 +18,30 @@ import type {
   AccessoryOrder,
   Appointment,
   AppState,
+  CartLine,
   InboxItem,
   Job,
   JobStatus,
   Notification,
+  PaymentRecord,
   RoadsideCall,
   RoadsideStatus,
   Session,
 } from "./types";
 
-const KEY = "elit-detailing-v2";
+const KEY = "elit-detailing-v3";
+
+type PaidCheckoutInput = {
+  conversationId: string;
+  providerPaymentId?: string;
+  provider?: "iyzico" | "mock";
+  amount: number;
+  title: string;
+  kind: PaymentRecord["kind"];
+  buyerName: string;
+  buyerPhone: string;
+  payload: Record<string, unknown>;
+};
 
 type Store = AppState & {
   ready: boolean;
@@ -44,6 +58,12 @@ type Store = AppState & {
     date: string;
     time: string;
     notes: string;
+    /** Keşif randevusu — ödeme yok */
+    discovery?: boolean;
+    amount?: number;
+    paymentId?: string;
+    paymentStatus?: Appointment["paymentStatus"];
+    status?: Appointment["status"];
   }) => Appointment;
   createRoadside: (input: {
     name: string;
@@ -63,7 +83,26 @@ type Store = AppState & {
     accessoryId: string;
     qty: number;
     notes: string;
+    paymentId?: string;
+    paymentStatus?: AccessoryOrder["paymentStatus"];
+    lines?: { accessoryId: string; qty: number }[];
   }) => AccessoryOrder | null;
+  addToCart: (accessoryId: string, qty?: number) => void;
+  setCartQty: (accessoryId: string, qty: number) => void;
+  removeFromCart: (accessoryId: string) => void;
+  clearCart: () => void;
+  fulfillPaidCheckout: (input: PaidCheckoutInput) => { payment: PaymentRecord; refId: string };
+  markRefPaid: (input: {
+    kind: PaymentRecord["kind"];
+    refId: string;
+    amount: number;
+    conversationId: string;
+    providerPaymentId?: string;
+    provider?: "iyzico" | "mock";
+    title: string;
+    customerName: string;
+    phone: string;
+  }) => PaymentRecord;
   updateJobStatus: (id: string, status: JobStatus, note?: string) => void;
   checkInJob: (id: string) => void;
   checkInAppointment: (appointmentId: string) => void;
@@ -140,7 +179,28 @@ export function StoreProvider({ children }: { children: ReactNode }) {
             const merged: AppState = {
               ...seed,
               ...parsed,
-              jobs: (parsed.jobs ?? seed.jobs).map((j) => hydrateJob(j as Job)),
+              jobs: (parsed.jobs ?? seed.jobs).map((j) =>
+                hydrateJob({
+                  ...(j as Job),
+                  paymentStatus: (j as Job).paymentStatus ?? "bekliyor",
+                }),
+              ),
+              appointments: (parsed.appointments ?? seed.appointments).map((a) => ({
+                ...a,
+                paymentStatus: a.paymentStatus ?? ("bekliyor" as const),
+                amount: a.amount ?? 0,
+              })),
+              roadside: (parsed.roadside ?? seed.roadside).map((r) => ({
+                ...r,
+                paymentStatus: r.paymentStatus ?? ("bekliyor" as const),
+                amount: r.amount ?? 0,
+              })),
+              accessoryOrders: (parsed.accessoryOrders ?? seed.accessoryOrders).map((o) => ({
+                ...o,
+                paymentStatus: o.paymentStatus ?? ("bekliyor" as const),
+              })),
+              payments: parsed.payments ?? seed.payments ?? [],
+              cart: parsed.cart ?? [],
               whatsappOutbox: parsed.whatsappOutbox ?? [],
               coupons: parsed.coupons ?? seed.coupons,
               campaignNotif: parsed.campaignNotif ?? true,
@@ -202,6 +262,10 @@ export function StoreProvider({ children }: { children: ReactNode }) {
 
   const createAppointment = useCallback<Store["createAppointment"]>((input) => {
     const service = SERVICES.find((x) => x.id === input.serviceId)!;
+    const discovery = input.discovery ?? requiresDiscovery(service.id);
+    const amount = input.amount ?? (discovery ? 0 : service.fromPrice);
+    const paymentStatus = input.paymentStatus ?? (discovery ? "kesif" : "odendi");
+    const status = input.status ?? (paymentStatus === "odendi" ? "onaylandi" : "bekliyor");
     const appt: Appointment = {
       id: uid("RDV"),
       customerId: "c-demo",
@@ -214,7 +278,10 @@ export function StoreProvider({ children }: { children: ReactNode }) {
       date: input.date,
       time: input.time,
       notes: input.notes,
-      status: "bekliyor",
+      status,
+      paymentStatus,
+      paymentId: input.paymentId,
+      amount,
       createdAt: new Date().toISOString(),
     };
     const job: Job = {
@@ -228,7 +295,9 @@ export function StoreProvider({ children }: { children: ReactNode }) {
       serviceId: service.id,
       serviceName: service.name,
       notes: input.notes,
-      estimate: service.fromPrice,
+      estimate: amount || service.fromPrice,
+      paymentStatus,
+      paymentId: input.paymentId,
       status: "giris-bekleniyor",
       technicianId: service.category === "lastik" ? "t-ali" : service.category === "detailing" ? "t-deniz" : "t-mehmet",
       appointmentId: appt.id,
@@ -241,7 +310,9 @@ export function StoreProvider({ children }: { children: ReactNode }) {
         {
           at: new Date().toISOString(),
           status: "giris-bekleniyor",
-          note: `Randevu ${input.date} ${input.time} alındı. Saat gelmesi süreci başlatmaz; giriş onayı bekleniyor.`,
+          note: discovery
+            ? `Keşif randevusu ${input.date} ${input.time}. Fiyat keşif sonrası iyzico linki ile tahsil edilir.`
+            : `Randevu ${input.date} ${input.time} — iyzico ile ödendi (${amount} ₺). Saat gelmesi süreci başlatmaz; giriş onayı bekleniyor.`,
         },
       ],
     };
@@ -258,12 +329,14 @@ export function StoreProvider({ children }: { children: ReactNode }) {
           {
             at: new Date().toISOString(),
             from: "sistem",
-            text: `${input.date} ${input.time} için randevu talebiniz alındı (${service.durationMin} dk, ${service.segments.length} adım). Saat gelince süreç başlamaz. Araç girişte onaylanınca sayaç ve bildirimler açılır. İş kodu: ${job.id}.`,
+            text: discovery
+              ? `${input.date} ${input.time} keşif randevunuz alındı. Teklif hazır olunca Taleplerim’e iyzico ödeme linki düşer.`
+              : `${input.date} ${input.time} randevunuz iyzico ile ödendi (${amount} ₺). Giriş onayından sonra süreç başlar. İş: ${job.id}.`,
           },
         ],
       }),
       notifications: notify(s.notifications, {
-        title: "Yeni randevu",
+        title: discovery ? "Keşif randevusu" : "Ödemeli randevu",
         body: `${appt.id} · ${input.name} · ${service.name}`,
         href: `/yonetici/isler/${job.id}`,
       }),
@@ -286,6 +359,8 @@ export function StoreProvider({ children }: { children: ReactNode }) {
       issue: input.issue,
       urgency: input.urgency,
       status: "alindi",
+      paymentStatus: "bekliyor",
+      amount: 0,
       createdAt: new Date().toISOString(),
       updatedAt: new Date().toISOString(),
       timeline: [
@@ -293,8 +368,8 @@ export function StoreProvider({ children }: { children: ReactNode }) {
           at: new Date().toISOString(),
           status: "alindi",
           note: input.lat != null && input.lng != null
-            ? `Otomatik kayıt — GPS pin alındı. Ekip ataması bekleniyor.`
-            : "Otomatik kayıt — ekip ataması bekleniyor.",
+            ? `Otomatik kayıt — GPS pin alındı. Ödeme ekibi yola çıktıktan / iş bitince iyzico linki ile.`
+            : "Otomatik kayıt — ekip ataması bekleniyor. Ödeme çıkışı engellemez.",
         },
       ],
     };
@@ -310,7 +385,7 @@ export function StoreProvider({ children }: { children: ReactNode }) {
           {
             at: new Date().toISOString(),
             from: "sistem",
-            text: `${call.id} alındı (${input.urgency}). ${input.lat != null && input.lng != null ? "GPS konumu eklendi. " : ""}Konum notunuz operatöre iletildi. Arama yapmadan bu ekrandan takip edin.`,
+            text: `${call.id} alındı (${input.urgency}). ${input.lat != null && input.lng != null ? "GPS konumu eklendi. " : ""}Ekip yönlendirilir; ödeme iyzico linki ile sonradan alınır.`,
           },
         ],
       }),
@@ -324,45 +399,242 @@ export function StoreProvider({ children }: { children: ReactNode }) {
   }, []);
 
   const createAccessoryOrder = useCallback<Store["createAccessoryOrder"]>((input) => {
-    const acc = ACCESSORIES.find((a) => a.id === input.accessoryId);
-    if (!acc) return null;
+    const lines = input.lines?.length
+      ? input.lines
+      : [{ accessoryId: input.accessoryId, qty: input.qty }];
+    const resolved = lines
+      .map((l) => {
+        const acc = ACCESSORIES.find((a) => a.id === l.accessoryId);
+        return acc ? { acc, qty: l.qty } : null;
+      })
+      .filter(Boolean) as { acc: (typeof ACCESSORIES)[number]; qty: number }[];
+    if (!resolved.length) return null;
+    const primary = resolved[0]!;
+    const total = resolved.reduce((s, r) => s + r.acc.price * r.qty, 0);
     const order: AccessoryOrder = {
       id: uid("AKS"),
       customerId: "c-demo",
       customerName: input.name,
       phone: input.phone,
-      accessoryId: acc.id,
-      accessoryName: acc.name,
-      qty: input.qty,
-      total: acc.price * input.qty,
+      accessoryId: primary.acc.id,
+      accessoryName:
+        resolved.length === 1
+          ? primary.acc.name
+          : resolved.map((r) => `${r.acc.name}×${r.qty}`).join(", "),
+      qty: resolved.reduce((s, r) => s + r.qty, 0),
+      total,
       notes: input.notes,
-      status: "talep",
+      status: "hazirlaniyor",
+      paymentStatus: input.paymentStatus ?? "odendi",
+      paymentId: input.paymentId,
       createdAt: new Date().toISOString(),
     };
     setState((s) => ({
       ...s,
       accessoryOrders: [order, ...s.accessoryOrders],
+      cart: [],
       inbox: pushInbox(s.inbox, {
         customerId: s.session.customerId ?? "c-demo",
         kind: "aksesuar",
         refId: order.id,
-        title: `${acc.name} talebi`,
+        title: `Aksesuar siparişi — ${order.accessoryName}`,
         messages: [
           {
             at: new Date().toISOString(),
             from: "sistem",
-            text: `Sipariş ${order.id} alındı. Stok: ${acc.stock} adet. Hazır olunca Taleplerim güncellenir.`,
+            text: `Sipariş ${order.id} iyzico ile ödendi (${total} ₺). Hazırlanınca Taleplerim güncellenir.`,
           },
         ],
       }),
       notifications: notify(s.notifications, {
-        title: "Aksesuar talebi",
-        body: `${order.id} · ${acc.name} ×${input.qty}`,
-        href: "/yonetici",
+        title: "Ödemeli aksesuar",
+        body: `${order.id} · ${total} ₺`,
+        href: "/yonetici/gelir",
       }),
     }));
     return order;
   }, []);
+
+  const addToCart = useCallback<Store["addToCart"]>((accessoryId, qty = 1) => {
+    setState((s) => {
+      const exists = s.cart.find((c) => c.accessoryId === accessoryId);
+      const cart: CartLine[] = exists
+        ? s.cart.map((c) => (c.accessoryId === accessoryId ? { ...c, qty: c.qty + qty } : c))
+        : [...s.cart, { accessoryId, qty }];
+      return { ...s, cart };
+    });
+  }, []);
+
+  const setCartQty = useCallback<Store["setCartQty"]>((accessoryId, qty) => {
+    setState((s) => ({
+      ...s,
+      cart: qty <= 0 ? s.cart.filter((c) => c.accessoryId !== accessoryId) : s.cart.map((c) => (c.accessoryId === accessoryId ? { ...c, qty } : c)),
+    }));
+  }, []);
+
+  const removeFromCart = useCallback<Store["removeFromCart"]>((accessoryId) => {
+    setState((s) => ({ ...s, cart: s.cart.filter((c) => c.accessoryId !== accessoryId) }));
+  }, []);
+
+  const clearCart = useCallback(() => setState((s) => ({ ...s, cart: [] })), []);
+
+  const markRefPaid = useCallback<Store["markRefPaid"]>((input) => {
+    const payment: PaymentRecord = {
+      id: uid("PAY"),
+      kind: input.kind,
+      refId: input.refId,
+      amount: input.amount,
+      status: "odendi",
+      provider: input.provider ?? "mock",
+      providerPaymentId: input.providerPaymentId,
+      conversationId: input.conversationId,
+      title: input.title,
+      customerName: input.customerName,
+      phone: input.phone,
+      createdAt: new Date().toISOString(),
+      paidAt: new Date().toISOString(),
+    };
+    setState((s) => {
+      let jobs = s.jobs;
+      let appointments = s.appointments;
+      let roadside = s.roadside;
+      let accessoryOrders = s.accessoryOrders;
+      if (input.kind === "randevu" || input.kind === "kampanya" || input.kind === "teklif") {
+        appointments = appointments.map((a) =>
+          a.id === input.refId ? { ...a, paymentStatus: "odendi" as const, paymentId: payment.id, amount: input.amount, status: "onaylandi" as const } : a,
+        );
+        jobs = jobs.map((j) =>
+          j.appointmentId === input.refId || j.id === input.refId
+            ? { ...j, paymentStatus: "odendi" as const, paymentId: payment.id, estimate: input.amount }
+            : j,
+        );
+      }
+      if (input.kind === "yol-yardim") {
+        roadside = roadside.map((r) =>
+          r.id === input.refId ? { ...r, paymentStatus: "odendi" as const, paymentId: payment.id, amount: input.amount } : r,
+        );
+      }
+      if (input.kind === "aksesuar") {
+        accessoryOrders = accessoryOrders.map((o) =>
+          o.id === input.refId ? { ...o, paymentStatus: "odendi" as const, paymentId: payment.id, status: "hazirlaniyor" as const } : o,
+        );
+      }
+      return {
+        ...s,
+        payments: [payment, ...s.payments],
+        jobs,
+        appointments,
+        roadside,
+        accessoryOrders,
+        inbox: pushInbox(s.inbox, {
+          customerId: s.session.customerId ?? "c-demo",
+          kind: input.kind === "yol-yardim" ? "yol-yardim" : input.kind === "aksesuar" ? "aksesuar" : "randevu",
+          refId: input.refId,
+          title: `Ödeme alındı — ${input.title}`,
+          messages: [
+            {
+              at: new Date().toISOString(),
+              from: "sistem",
+              text: `iyzico ödemesi tamam (${input.amount} ₺). Ref: ${input.providerPaymentId || payment.id}`,
+            },
+          ],
+        }),
+        notifications: notify(s.notifications, {
+          title: "iyzico tahsilat",
+          body: `${input.amount} ₺ · ${input.title}`,
+          href: "/yonetici/gelir",
+        }),
+      };
+    });
+    return payment;
+  }, []);
+
+  const fulfillPaidCheckout = useCallback<Store["fulfillPaidCheckout"]>((input) => {
+    const p = input.payload;
+    if (input.kind === "aksesuar") {
+      const lines = (p.lines as { accessoryId: string; qty: number }[]) || [];
+      const order = createAccessoryOrder({
+        name: input.buyerName,
+        phone: input.buyerPhone,
+        accessoryId: lines[0]?.accessoryId || String(p.accessoryId || ""),
+        qty: lines[0]?.qty || Number(p.qty) || 1,
+        notes: String(p.notes || ""),
+        lines,
+        paymentStatus: "odendi",
+      });
+      const payment = markRefPaid({
+        kind: "aksesuar",
+        refId: order?.id || "AKS-unknown",
+        amount: input.amount,
+        conversationId: input.conversationId,
+        providerPaymentId: input.providerPaymentId,
+        provider: input.provider,
+        title: input.title,
+        customerName: input.buyerName,
+        phone: input.buyerPhone,
+      });
+      return { payment, refId: order?.id || payment.refId };
+    }
+
+    if (input.kind === "yol-yardim") {
+      const refId = String(p.refId || "");
+      const payment = markRefPaid({
+        kind: "yol-yardim",
+        refId,
+        amount: input.amount,
+        conversationId: input.conversationId,
+        providerPaymentId: input.providerPaymentId,
+        provider: input.provider,
+        title: input.title,
+        customerName: input.buyerName,
+        phone: input.buyerPhone,
+      });
+      return { payment, refId };
+    }
+
+    if (input.kind === "teklif") {
+      const refId = String(p.refId || "");
+      const payment = markRefPaid({
+        kind: "teklif",
+        refId,
+        amount: input.amount,
+        conversationId: input.conversationId,
+        providerPaymentId: input.providerPaymentId,
+        provider: input.provider,
+        title: input.title,
+        customerName: input.buyerName,
+        phone: input.buyerPhone,
+      });
+      return { payment, refId };
+    }
+
+    const appt = createAppointment({
+      name: input.buyerName,
+      phone: input.buyerPhone,
+      plate: String(p.plate || "06 ELT 01"),
+      vehicle: String(p.vehicle || ""),
+      serviceId: String(p.serviceId || "ic-dis-yikama"),
+      date: String(p.date || ""),
+      time: String(p.time || ""),
+      notes: String(p.notes || "") + (p.campaignCode ? ` · Kampanya ${p.campaignCode}` : ""),
+      discovery: false,
+      amount: input.amount,
+      paymentStatus: "odendi",
+      status: "onaylandi",
+    });
+    const payment = markRefPaid({
+      kind: input.kind === "kampanya" ? "kampanya" : "randevu",
+      refId: appt.id,
+      amount: input.amount,
+      conversationId: input.conversationId,
+      providerPaymentId: input.providerPaymentId,
+      provider: input.provider,
+      title: input.title,
+      customerName: input.buyerName,
+      phone: input.buyerPhone,
+    });
+    return { payment, refId: appt.id };
+  }, [createAccessoryOrder, createAppointment, markRefPaid]);
 
   const applyCheckIn = (s: AppState, jobId: string): AppState => {
     const job = s.jobs.find((j) => j.id === jobId);
@@ -690,6 +962,12 @@ export function StoreProvider({ children }: { children: ReactNode }) {
       createAppointment,
       createRoadside,
       createAccessoryOrder,
+      addToCart,
+      setCartQty,
+      removeFromCart,
+      clearCart,
+      fulfillPaidCheckout,
+      markRefPaid,
       updateJobStatus,
       checkInJob,
       checkInAppointment,
@@ -711,6 +989,12 @@ export function StoreProvider({ children }: { children: ReactNode }) {
       createAppointment,
       createRoadside,
       createAccessoryOrder,
+      addToCart,
+      setCartQty,
+      removeFromCart,
+      clearCart,
+      fulfillPaidCheckout,
+      markRefPaid,
       updateJobStatus,
       checkInJob,
       checkInAppointment,
