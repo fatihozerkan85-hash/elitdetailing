@@ -1,4 +1,5 @@
 import { ACCESSORIES, SERVICES } from "./catalog";
+import { DEMO_CUSTOMER_PASSWORD, hashPassword } from "./auth";
 import { minutesAgo, todayISO } from "./format";
 import { cloneAccessories, hydrateCustomer } from "./ops";
 import { segmentsFor } from "./process";
@@ -11,6 +12,8 @@ const customers: Customer[] = [
     name: "Demo Müşteri",
     phone: "05551234567",
     email: "demo@elitdetailing.com",
+    passwordHash: hashPassword(DEMO_CUSTOMER_PASSWORD),
+    emailVerified: true,
     plate: "06 ELT 01",
     vehicle: "2021 BMW 5.20i",
     vehicles: [
@@ -23,6 +26,9 @@ const customers: Customer[] = [
     id: "c-ayse",
     name: "Ayşe Kaya",
     phone: "05321220011",
+    email: "ayse@example.com",
+    passwordHash: hashPassword(DEMO_CUSTOMER_PASSWORD),
+    emailVerified: true,
     plate: "06 AYK 142",
     vehicle: "2019 Renault Megane",
   }),
@@ -30,6 +36,9 @@ const customers: Customer[] = [
     id: "c-cem",
     name: "Cem Yıldız",
     phone: "05423334455",
+    email: "cem@example.com",
+    passwordHash: hashPassword(DEMO_CUSTOMER_PASSWORD),
+    emailVerified: true,
     plate: "06 CM 908",
     vehicle: "2022 Toyota Corolla",
   }),
@@ -37,6 +46,9 @@ const customers: Customer[] = [
     id: "c-burcu",
     name: "Burcu Şen",
     phone: "05076667788",
+    email: "burcu@example.com",
+    passwordHash: hashPassword(DEMO_CUSTOMER_PASSWORD),
+    emailVerified: true,
     plate: "06 BRC 77",
     vehicle: "2018 BMW 3.20",
   }),
@@ -44,6 +56,9 @@ const customers: Customer[] = [
     id: "c-oguz",
     name: "Oğuz Demir",
     phone: "05309876543",
+    email: "oguz@example.com",
+    passwordHash: hashPassword(DEMO_CUSTOMER_PASSWORD),
+    emailVerified: true,
     plate: "06 OGZ 330",
     vehicle: "2020 Ford Transit",
   }),
@@ -349,6 +364,7 @@ export function buildSeed(): AppState {
       },
     ],
     whatsappOutbox: [],
+    emailOutbox: [],
     coupons: [
       {
         id: "cp-1",

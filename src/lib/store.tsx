@@ -9,7 +9,20 @@ import {
   useState,
   type ReactNode,
 } from "react";
+import { hashPassword, makeResetToken, verifyPassword } from "./auth";
 import { ACCESSORIES, DEMO, JOB_STATUS_LABEL, ORDER_STATUS_LABEL, ROADSIDE_STATUS_LABEL, SERVICES } from "./catalog";
+import {
+  buildAccountChangedEmail,
+  buildAccessoryOrderEmail,
+  buildAppointmentReceiptEmail,
+  buildCouponEmail,
+  buildPasswordChangedEmail,
+  buildPasswordResetEmail,
+  buildPaymentReceiptEmail,
+  buildWelcomeEmail,
+  sendEmailClient,
+  type EmailPayload,
+} from "./email";
 import { uid } from "./format";
 import { cloneAccessories, couponOffAmount, hydrateCustomer, inferDiscountPercent, makeVehicle, upsertCustomer, withActiveVehicle } from "./ops";
 import { jobClock, hydrateJob, segmentsFor } from "./process";
@@ -24,6 +37,7 @@ import type {
   CartLine,
   Coupon,
   Customer,
+  EmailOutboxItem,
   InboxItem,
   Job,
   JobStatus,
@@ -52,15 +66,19 @@ type PaidCheckoutInput = {
 
 type Store = AppState & {
   ready: boolean;
-  loginCustomer: (phone: string) => boolean;
+  loginCustomer: (phoneOrEmail: string, password: string) => boolean;
   registerCustomer: (input: {
     name: string;
     phone: string;
-    email?: string;
+    email: string;
+    password: string;
     plate: string;
     vehicle: string;
   }) => Customer;
   updateCustomerProfile: (input: { name?: string; phone?: string; email?: string }) => void;
+  requestPasswordReset: (phoneOrEmail: string) => { ok: boolean; message: string; demoUrl?: string };
+  resetPassword: (token: string, newPassword: string) => { ok: boolean; message: string };
+  changePassword: (currentPassword: string, newPassword: string) => { ok: boolean; message: string };
   addVehicle: (input: { plate: string; label: string }) => Vehicle | null;
   removeVehicle: (vehicleId: string) => void;
   setActiveVehicle: (vehicleId: string) => void;
@@ -217,6 +235,42 @@ function pushWhatsApp(
   return { outbox: [item, ...outbox], item };
 }
 
+function enqueueEmail(
+  outbox: EmailOutboxItem[],
+  payload: EmailPayload,
+): { outbox: EmailOutboxItem[]; item: EmailOutboxItem } {
+  const item: EmailOutboxItem = {
+    id: uid("EM"),
+    to: payload.to,
+    subject: payload.subject,
+    kind: payload.kind,
+    text: payload.text,
+    at: new Date().toISOString(),
+    status: "queued",
+  };
+  if (typeof fetch !== "undefined" && payload.to.includes("@")) {
+    void sendEmailClient(payload).then((res) => {
+      /* fire-and-forget; UI reads initial queued row */
+      void res;
+    });
+  }
+  const statusItem: EmailOutboxItem = {
+    ...item,
+    status: payload.to.includes("@") ? "mock" : "failed",
+  };
+  return { outbox: [statusItem, ...outbox], item: statusItem };
+}
+
+function findCustomerByLogin(customers: Customer[], phoneOrEmail: string) {
+  const raw = phoneOrEmail.trim().toLowerCase();
+  const digits = raw.replace(/\D/g, "");
+  return customers.map(hydrateCustomer).find((c) => {
+    if (c.email && c.email.toLowerCase() === raw) return true;
+    if (digits && c.phone.replace(/\D/g, "") === digits) return true;
+    return false;
+  });
+}
+
 export function StoreProvider({ children }: { children: ReactNode }) {
   const [state, setState] = useState<AppState>(() => buildSeed());
   const [ready, setReady] = useState(false);
@@ -232,7 +286,6 @@ export function StoreProvider({ children }: { children: ReactNode }) {
             const merged: AppState = {
               ...seed,
               ...parsed,
-              customers: (parsed.customers ?? seed.customers).map((c) => hydrateCustomer(c)),
               jobs: (parsed.jobs ?? seed.jobs).map((j) =>
                 hydrateJob({
                   ...(j as Job),
@@ -260,10 +313,20 @@ export function StoreProvider({ children }: { children: ReactNode }) {
                 : cloneAccessories(ACCESSORIES),
               cms: { ...buildDefaultCms(), ...(parsed.cms ?? {}), banners: parsed.cms?.banners ?? seed.cms.banners, ticker: parsed.cms?.ticker ?? seed.cms.ticker, homeServices: parsed.cms?.homeServices ?? seed.cms.homeServices, campaigns: parsed.cms?.campaigns ?? seed.cms.campaigns, services: parsed.cms?.services ?? seed.cms.services, texts: parsed.cms?.texts ?? seed.cms.texts, forms: parsed.cms?.forms ?? seed.cms.forms },
               whatsappOutbox: parsed.whatsappOutbox ?? [],
+              emailOutbox: parsed.emailOutbox ?? [],
               coupons: (parsed.coupons ?? seed.coupons).map((c) => ({
                 ...c,
                 discountPercent: c.discountPercent ?? inferDiscountPercent(c.code, c.rule),
               })),
+              customers: (parsed.customers ?? seed.customers).map((c) => {
+                const h = hydrateCustomer(c);
+                return {
+                  ...h,
+                  passwordHash: c.passwordHash || h.passwordHash || hashPassword("123456"),
+                  emailVerified: c.emailVerified ?? h.emailVerified,
+                  email: c.email || h.email,
+                };
+              }),
               campaignNotif: parsed.campaignNotif ?? true,
               couponNotif: parsed.couponNotif ?? true,
               session: current.session.role !== "guest" ? current.session : (parsed.session ?? seed.session),
@@ -283,15 +346,22 @@ export function StoreProvider({ children }: { children: ReactNode }) {
     if (ready) persist(state);
   }, [ready, state]);
 
-  const loginCustomer = useCallback((phone: string) => {
-    const digits = phone.replace(/\D/g, "");
+  const loginCustomer = useCallback((phoneOrEmail: string, password: string) => {
     let ok = false;
     setState((s) => {
-      const found = s.customers.map(hydrateCustomer).find((c) => c.phone.replace(/\D/g, "") === digits);
+      const found = findCustomerByLogin(s.customers, phoneOrEmail);
       if (!found) return s;
+      const hash = found.passwordHash || hashPassword("123456");
+      if (!verifyPassword(password, hash)) return s;
       ok = true;
       const session: Session = { role: "customer", customerId: found.id, name: found.name };
-      return { ...s, session, customers: s.customers.map((c) => (c.id === found.id ? found : hydrateCustomer(c))) };
+      return {
+        ...s,
+        session,
+        customers: s.customers.map((c) =>
+          c.id === found.id ? { ...found, passwordHash: hash } : hydrateCustomer(c),
+        ),
+      };
     });
     return ok;
   }, []);
@@ -299,6 +369,11 @@ export function StoreProvider({ children }: { children: ReactNode }) {
   const registerCustomer = useCallback<Store["registerCustomer"]>((input) => {
     let created!: Customer;
     setState((s) => {
+      const existing = findCustomerByLogin(s.customers, input.phone);
+      if (existing) {
+        created = existing;
+        return s;
+      }
       const { customers, customer } = upsertCustomer(s.customers.map(hydrateCustomer), {
         name: input.name,
         phone: input.phone,
@@ -306,31 +381,166 @@ export function StoreProvider({ children }: { children: ReactNode }) {
         plate: input.plate,
         vehicle: input.vehicle,
       });
-      created = customer;
+      const withAuth: Customer = {
+        ...customer,
+        email: input.email.trim(),
+        passwordHash: hashPassword(input.password),
+        emailVerified: false,
+      };
+      created = withAuth;
+      const welcome = buildWelcomeEmail({ name: withAuth.name, email: withAuth.email! });
+      const mail = enqueueEmail(s.emailOutbox ?? [], welcome);
       return {
         ...s,
-        customers,
-        session: { role: "customer" as const, customerId: customer.id, name: customer.name },
+        customers: customers.map((c) => (c.id === withAuth.id ? withAuth : c)),
+        emailOutbox: mail.outbox,
+        session: { role: "customer" as const, customerId: withAuth.id, name: withAuth.name },
+        notifications: notify(s.notifications, {
+          title: "Hoş geldiniz",
+          body: "Hesabınız hazır. Hoş geldin e-postası gönderildi.",
+          href: "/profil",
+          audience: "customer",
+        }),
       };
     });
     return created;
   }, []);
 
+  const requestPasswordReset = useCallback<Store["requestPasswordReset"]>((phoneOrEmail) => {
+    let result: { ok: boolean; message: string; demoUrl?: string } = { ok: false, message: "Hesap bulunamadı" };
+    setState((s) => {
+      const found = findCustomerByLogin(s.customers, phoneOrEmail);
+      if (!found?.email) {
+        result = { ok: false, message: found ? "Hesapta e-posta yok" : "Hesap bulunamadı" };
+        return s;
+      }
+      const token = makeResetToken();
+      const expires = new Date(Date.now() + 30 * 60_000).toISOString();
+      const origin = typeof window !== "undefined" ? window.location.origin : "https://www.elitdetailing.com";
+      const resetUrl = `${origin}/sifre-sifirla?token=${encodeURIComponent(token)}`;
+      const mail = enqueueEmail(
+        s.emailOutbox ?? [],
+        buildPasswordResetEmail({ name: found.name, email: found.email, resetUrl }),
+      );
+      result = {
+        ok: true,
+        message: "Sıfırlama linki e-postanıza gönderildi",
+        demoUrl: resetUrl,
+      };
+      return {
+        ...s,
+        customers: s.customers.map((c) =>
+          c.id === found.id
+            ? { ...hydrateCustomer(c), resetToken: token, resetTokenExpires: expires, email: found.email, passwordHash: c.passwordHash }
+            : c,
+        ),
+        emailOutbox: mail.outbox,
+      };
+    });
+    return result;
+  }, []);
+
+  const resetPassword = useCallback<Store["resetPassword"]>((token, newPassword) => {
+    let result = { ok: false, message: "Geçersiz veya süresi dolmuş link" };
+    if (!newPassword || newPassword.length < 6) {
+      return { ok: false, message: "Şifre en az 6 karakter olmalı" };
+    }
+    setState((s) => {
+      const found = s.customers.find(
+        (c) => c.resetToken === token && c.resetTokenExpires && new Date(c.resetTokenExpires).getTime() > Date.now(),
+      );
+      if (!found) return s;
+      const updated = {
+        ...hydrateCustomer(found),
+        passwordHash: hashPassword(newPassword),
+        resetToken: undefined,
+        resetTokenExpires: undefined,
+        email: found.email,
+      };
+      let emailOutbox = s.emailOutbox ?? [];
+      if (updated.email) {
+        emailOutbox = enqueueEmail(
+          emailOutbox,
+          buildPasswordChangedEmail({ name: updated.name, email: updated.email }),
+        ).outbox;
+      }
+      result = { ok: true, message: "Şifreniz güncellendi" };
+      return {
+        ...s,
+        customers: s.customers.map((c) => (c.id === found.id ? updated : c)),
+        emailOutbox,
+        notifications: notify(s.notifications, {
+          title: "Şifre güncellendi",
+          body: "Yeni şifrenizle giriş yapabilirsiniz.",
+          href: "/giris",
+          audience: "customer",
+        }),
+      };
+    });
+    return result;
+  }, []);
+
+  const changePassword = useCallback<Store["changePassword"]>((currentPassword, newPassword) => {
+    if (!newPassword || newPassword.length < 6) {
+      return { ok: false, message: "Yeni şifre en az 6 karakter olmalı" };
+    }
+    let result = { ok: false, message: "Mevcut şifre hatalı" };
+    setState((s) => {
+      if (!s.session.customerId) {
+        result = { ok: false, message: "Oturum yok" };
+        return s;
+      }
+      const found = s.customers.find((c) => c.id === s.session.customerId);
+      if (!found) return s;
+      const hash = found.passwordHash || hashPassword("123456");
+      if (!verifyPassword(currentPassword, hash)) return s;
+      const updated = { ...hydrateCustomer(found), passwordHash: hashPassword(newPassword), email: found.email };
+      let emailOutbox = s.emailOutbox ?? [];
+      if (updated.email) {
+        emailOutbox = enqueueEmail(
+          emailOutbox,
+          buildPasswordChangedEmail({ name: updated.name, email: updated.email }),
+        ).outbox;
+      }
+      result = { ok: true, message: "Şifre değiştirildi" };
+      return { ...s, customers: s.customers.map((c) => (c.id === found.id ? updated : c)), emailOutbox };
+    });
+    return result;
+  }, []);
+
   const updateCustomerProfile = useCallback<Store["updateCustomerProfile"]>((input) => {
     setState((s) => {
       if (!s.session.customerId) return s;
+      const prev = s.customers.find((c) => c.id === s.session.customerId);
+      if (!prev) return s;
+      const changes: string[] = [];
+      if (input.name?.trim() && input.name.trim() !== prev.name) changes.push("ad");
+      if (input.phone?.trim() && input.phone.trim() !== prev.phone) changes.push("telefon");
+      if (input.email !== undefined && (input.email || "") !== (prev.email || "")) changes.push("e-posta");
+      const next = hydrateCustomer({
+        ...prev,
+        name: input.name?.trim() || prev.name,
+        phone: input.phone?.trim() || prev.phone,
+        email: input.email !== undefined ? input.email : prev.email,
+      });
+      let emailOutbox = s.emailOutbox ?? [];
+      const notifyEmail = next.email || prev.email;
+      if (changes.length && notifyEmail) {
+        emailOutbox = enqueueEmail(
+          emailOutbox,
+          buildAccountChangedEmail({
+            name: next.name,
+            email: notifyEmail,
+            changes: changes.join(", "),
+          }),
+        ).outbox;
+      }
       return {
         ...s,
-        customers: s.customers.map((c) => {
-          if (c.id !== s.session.customerId) return c;
-          const next = hydrateCustomer({
-            ...c,
-            name: input.name?.trim() || c.name,
-            phone: input.phone?.trim() || c.phone,
-            email: input.email !== undefined ? input.email : c.email,
-          });
-          return next;
-        }),
+        customers: s.customers.map((c) =>
+          c.id === s.session.customerId ? { ...next, passwordHash: prev.passwordHash } : c,
+        ),
+        emailOutbox,
         session: {
           ...s.session,
           name: input.name?.trim() || s.session.name,
@@ -512,6 +722,24 @@ export function StoreProvider({ children }: { children: ReactNode }) {
           href: `/yonetici/isler/${job.id}`,
           audience: "owner",
         }),
+        emailOutbox: (() => {
+          const email = customer.email || s.customers.find((c) => c.id === customer.id)?.email;
+          if (!email) return s.emailOutbox ?? [];
+          return enqueueEmail(
+            s.emailOutbox ?? [],
+            buildAppointmentReceiptEmail({
+              name: input.name,
+              email,
+              serviceName: service.name,
+              date: input.date,
+              time: input.time,
+              plate: appt.plate,
+              amount,
+              discovery,
+              refId: appt.id,
+            }),
+          ).outbox;
+        })(),
       };
     });
     return created;
@@ -657,6 +885,20 @@ export function StoreProvider({ children }: { children: ReactNode }) {
           href: "/yonetici/gelir",
           audience: "owner",
         }),
+        emailOutbox: (() => {
+          const email = customer.email || s.customers.find((c) => c.id === customer.id)?.email;
+          if (!email) return s.emailOutbox ?? [];
+          return enqueueEmail(
+            s.emailOutbox ?? [],
+            buildAccessoryOrderEmail({
+              name: input.name,
+              email,
+              orderId: order.id,
+              items: order.accessoryName,
+              total,
+            }),
+          ).outbox;
+        })(),
       };
     });
     return created;
@@ -754,7 +996,26 @@ export function StoreProvider({ children }: { children: ReactNode }) {
           title: "iyzico tahsilat",
           body: `${input.amount} ₺ · ${input.title}`,
           href: "/yonetici/gelir",
+          audience: "owner",
         }),
+        emailOutbox: (() => {
+          const cust =
+            s.customers.find((c) => c.phone.replace(/\D/g, "") === input.phone.replace(/\D/g, "")) ||
+            s.customers.find((c) => c.id === s.session.customerId);
+          const email = cust?.email;
+          if (!email) return s.emailOutbox ?? [];
+          return enqueueEmail(
+            s.emailOutbox ?? [],
+            buildPaymentReceiptEmail({
+              name: input.customerName,
+              email,
+              title: input.title,
+              amount: input.amount,
+              refId: input.refId,
+              providerPaymentId: input.providerPaymentId,
+            }),
+          ).outbox;
+        })(),
       };
     });
     return payment;
@@ -1178,11 +1439,15 @@ export function StoreProvider({ children }: { children: ReactNode }) {
       if (!order) return s;
       const at = new Date().toISOString();
       const text = `Sipariş ${order.id}: ${ORDER_STATUS_LABEL[status] ?? status}.`;
-      const wa = pushWhatsApp(s.whatsappOutbox, {
-        phone: order.phone,
-        text: statusWhatsAppText({ plate: "AKS", service: order.accessoryName, body: text }),
-        jobId: order.id,
-      });
+      // WhatsApp only for ready / delivered / cancel — confirmation was e-mail
+      const sendWa = status === "hazir" || status === "teslim" || status === "iptal";
+      const wa = sendWa
+        ? pushWhatsApp(s.whatsappOutbox, {
+            phone: order.phone,
+            text: statusWhatsAppText({ plate: "AKS", service: order.accessoryName, body: text }),
+            jobId: order.id,
+          })
+        : null;
       let accessories = s.accessories;
       if (status === "iptal" && order.status !== "iptal") {
         accessories = s.accessories.map((a) =>
@@ -1193,13 +1458,21 @@ export function StoreProvider({ children }: { children: ReactNode }) {
         ...s,
         accessories,
         accessoryOrders: s.accessoryOrders.map((o) => (o.id === id ? { ...o, status } : o)),
-        whatsappOutbox: wa.outbox,
+        whatsappOutbox: wa ? wa.outbox : s.whatsappOutbox,
         inbox: pushInbox(s.inbox, {
           customerId: order.customerId,
           kind: "aksesuar",
           refId: order.id,
           title: `Aksesuar — ${order.accessoryName}`,
-          messages: [{ at, from: "sistem", channel: "whatsapp", waUrl: wa.item.url, text: wa.item.text }],
+          messages: [
+            {
+              at,
+              from: "sistem",
+              channel: wa ? "whatsapp" : undefined,
+              waUrl: wa?.item.url,
+              text: wa ? wa.item.text : text,
+            },
+          ],
         }),
       };
     });
@@ -1231,8 +1504,23 @@ export function StoreProvider({ children }: { children: ReactNode }) {
       }
       ok = true;
       const discountPercent = inferDiscountPercent(camp.couponCode, camp.blurb) ?? 10;
+      const cust = s.customers.find((c) => c.id === cid);
+      let emailOutbox = s.emailOutbox ?? [];
+      if (s.couponNotif && cust?.email) {
+        emailOutbox = enqueueEmail(
+          emailOutbox,
+          buildCouponEmail({
+            name: cust.name,
+            email: cust.email,
+            code: camp.couponCode,
+            title: camp.title,
+            rule: camp.blurb,
+          }),
+        ).outbox;
+      }
       return {
         ...s,
+        emailOutbox,
         coupons: [
           {
             id: uid("CP"),
@@ -1287,16 +1575,33 @@ export function StoreProvider({ children }: { children: ReactNode }) {
       discountPercent,
       discountAmount: input.discountAmount,
     };
-    setState((s) => ({
-      ...s,
-      coupons: [row, ...s.coupons],
-      notifications: notify(s.notifications, {
-        title: "Yeni kupon",
-        body: `${row.code} · ${row.title}`,
-        href: "/kuponlar",
-        audience: "customer",
-      }),
-    }));
+    setState((s) => {
+      const cust = s.customers.find((c) => c.id === row.customerId);
+      let emailOutbox = s.emailOutbox ?? [];
+      if (s.couponNotif && cust?.email) {
+        emailOutbox = enqueueEmail(
+          emailOutbox,
+          buildCouponEmail({
+            name: cust.name,
+            email: cust.email,
+            code: row.code,
+            title: row.title,
+            rule: row.rule,
+          }),
+        ).outbox;
+      }
+      return {
+        ...s,
+        emailOutbox,
+        coupons: [row, ...s.coupons],
+        notifications: notify(s.notifications, {
+          title: "Yeni kupon",
+          body: `${row.code} · ${row.title}`,
+          href: "/kuponlar",
+          audience: "customer",
+        }),
+      };
+    });
     return row;
   }, []);
 
@@ -1550,6 +1855,9 @@ export function StoreProvider({ children }: { children: ReactNode }) {
       loginCustomer,
       registerCustomer,
       updateCustomerProfile,
+      requestPasswordReset,
+      resetPassword,
+      changePassword,
       addVehicle,
       removeVehicle,
       setActiveVehicle,
@@ -1599,6 +1907,9 @@ export function StoreProvider({ children }: { children: ReactNode }) {
       loginCustomer,
       registerCustomer,
       updateCustomerProfile,
+      requestPasswordReset,
+      resetPassword,
+      changePassword,
       addVehicle,
       removeVehicle,
       setActiveVehicle,

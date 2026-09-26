@@ -8,7 +8,7 @@ import { formatDateTime } from "@/lib/format";
 import { useStore } from "@/lib/store";
 
 export default function BildirimlerPage() {
-  const { notifications, markAllNotificationsRead, whatsappOutbox } = useStore();
+  const { notifications, markAllNotificationsRead, whatsappOutbox, emailOutbox } = useStore();
   return (
     <PanelShell>
       <div className="flex items-center justify-between gap-3">
@@ -17,7 +17,31 @@ export default function BildirimlerPage() {
           Tümünü okundu say
         </Button>
       </div>
-      <h2 className="mt-8 text-sm tracking-widest text-zinc-500 uppercase">WhatsApp kuyruğu</h2>
+
+      <p className="mt-3 max-w-2xl text-sm text-zinc-500">
+        E-posta: hesap, makbuz, kupon. WhatsApp: check-in, süreç adımı, yol yardım, ödeme linki.
+      </p>
+
+      <h2 className="mt-8 text-sm tracking-widest text-zinc-500 uppercase">E-posta kuyruğu</h2>
+      {emailOutbox.length === 0 ? (
+        <p className="mt-2 text-sm text-zinc-500">
+          Henüz e-posta yok. Kayıt, şifre sıfırlama veya ödeme makbuzu üretince düşer.
+        </p>
+      ) : (
+        <ul className="mt-3 space-y-2">
+          {emailOutbox.map((m) => (
+            <li key={m.id} className="rounded-lg border border-sky-400/20 bg-sky-400/5 p-3 text-sm">
+              <p className="text-xs text-zinc-500">
+                {m.to} · {m.kind} · {m.status} · {formatDateTime(m.at)}
+              </p>
+              <p className="mt-1 font-medium text-zinc-100">{m.subject}</p>
+              <p className="mt-1 whitespace-pre-line text-zinc-300">{m.text}</p>
+            </li>
+          ))}
+        </ul>
+      )}
+
+      <h2 className="mt-10 text-sm tracking-widest text-zinc-500 uppercase">WhatsApp kuyruğu</h2>
       {whatsappOutbox.length === 0 ? (
         <p className="mt-2 text-sm text-zinc-500">Henüz WhatsApp mesajı yok. Giriş onayı veya yeni adım üretince düşer.</p>
       ) : (

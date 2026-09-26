@@ -20,7 +20,7 @@ export default function BildirimlerPage() {
   return (
     <CustomerPanel
       title="Bildirimler"
-      lead="Kampanya, kupon ve iş güncellemeleri — kısa ve net."
+      lead="Kampanya ve kupon e-posta; süreç adımları WhatsApp; burada uygulama özeti."
       className="sm:max-w-2xl"
     >
       {session.role !== "customer" ? (

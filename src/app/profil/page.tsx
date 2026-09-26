@@ -25,6 +25,7 @@ export default function ProfilPage() {
     couponNotif,
     setNotifPrefs,
     updateCustomerProfile,
+    changePassword,
     logout,
   } = useStore();
   const router = useRouter();
@@ -32,6 +33,10 @@ export default function ProfilPage() {
   const [name, setName] = useState(me?.name || "");
   const [phone, setPhone] = useState(me?.phone || "");
   const [email, setEmail] = useState(me?.email || "");
+  const [pwOpen, setPwOpen] = useState(false);
+  const [currentPw, setCurrentPw] = useState("");
+  const [newPw, setNewPw] = useState("");
+  const [newPw2, setNewPw2] = useState("");
 
   if (session.role !== "customer" || !me) {
     return (
@@ -91,7 +96,9 @@ export default function ProfilPage() {
                 return;
               }
               updateCustomerProfile({ name, phone, email });
-              toast.success("Profil güncellendi");
+              toast.success("Profil güncellendi", {
+                description: "Değişiklik onay e-postası gönderildi (mock).",
+              });
               setEditing(false);
             }}
           >
@@ -113,6 +120,90 @@ export default function ProfilPage() {
                 Kaydet
               </Button>
               <Button type="button" variant="outline" className="h-11" onClick={() => setEditing(false)}>
+                Vazgeç
+              </Button>
+            </div>
+          </form>
+        )}
+      </CustomerCard>
+
+      <CustomerCard>
+        <p className="customer-section-label">Şifre</p>
+        {!pwOpen ? (
+          <>
+            <p className="mt-2 text-[14px] text-[#f0e6c8]/55">
+              Değişince onay e-postası gider. Unuttuysanız e-posta ile sıfırlayın.
+            </p>
+            <Button type="button" variant="outline" size="sm" className="mt-4" onClick={() => setPwOpen(true)}>
+              Şifre değiştir
+            </Button>
+          </>
+        ) : (
+          <form
+            className="mt-3 grid gap-3"
+            onSubmit={(e) => {
+              e.preventDefault();
+              if (newPw !== newPw2) {
+                toast.error("Yeni şifreler eşleşmiyor");
+                return;
+              }
+              const res = changePassword(currentPw, newPw);
+              if (!res.ok) {
+                toast.error(res.message);
+                return;
+              }
+              toast.success(res.message, { description: "Onay e-postası gönderildi." });
+              setCurrentPw("");
+              setNewPw("");
+              setNewPw2("");
+              setPwOpen(false);
+            }}
+          >
+            <div className="grid gap-1.5">
+              <Label className="text-[13px]">Mevcut şifre</Label>
+              <Input
+                className="h-11 text-base"
+                type="password"
+                value={currentPw}
+                onChange={(e) => setCurrentPw(e.target.value)}
+                autoComplete="current-password"
+              />
+            </div>
+            <div className="grid gap-1.5">
+              <Label className="text-[13px]">Yeni şifre</Label>
+              <Input
+                className="h-11 text-base"
+                type="password"
+                value={newPw}
+                onChange={(e) => setNewPw(e.target.value)}
+                autoComplete="new-password"
+              />
+            </div>
+            <div className="grid gap-1.5">
+              <Label className="text-[13px]">Yeni şifre tekrar</Label>
+              <Input
+                className="h-11 text-base"
+                type="password"
+                value={newPw2}
+                onChange={(e) => setNewPw2(e.target.value)}
+                autoComplete="new-password"
+              />
+            </div>
+            <div className="flex gap-2">
+              <Button type="submit" className="h-11 flex-1">
+                Kaydet
+              </Button>
+              <Button
+                type="button"
+                variant="outline"
+                className="h-11"
+                onClick={() => {
+                  setPwOpen(false);
+                  setCurrentPw("");
+                  setNewPw("");
+                  setNewPw2("");
+                }}
+              >
                 Vazgeç
               </Button>
             </div>
@@ -147,8 +238,11 @@ export default function ProfilPage() {
 
       <CustomerCard>
         <p className="customer-section-label">Bildirim tercihleri</p>
+        <p className="mt-2 text-[13px] leading-relaxed text-[#f0e6c8]/45">
+          Süreç adımları her zaman WhatsApp. Makbuz ve hesap mailleri e-posta.
+        </p>
         <label className="mt-3 flex items-center justify-between gap-3 text-[15px]">
-          Kampanya bildirimleri
+          Kampanya e-postaları
           <input
             type="checkbox"
             className="size-4 accent-amber-400"
@@ -157,7 +251,7 @@ export default function ProfilPage() {
           />
         </label>
         <label className="mt-3 flex items-center justify-between gap-3 text-[15px]">
-          Kupon hatırlatma
+          Kupon e-postaları
           <input
             type="checkbox"
             className="size-4 accent-amber-400"

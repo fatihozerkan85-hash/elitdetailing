@@ -89,12 +89,26 @@ export type Customer = {
   name: string;
   phone: string;
   email?: string;
+  passwordHash?: string;
+  emailVerified?: boolean;
+  resetToken?: string;
+  resetTokenExpires?: string;
   /** Primary plate — synced from active vehicle */
   plate: string;
   /** Primary vehicle label — synced from active vehicle */
   vehicle: string;
   vehicles: Vehicle[];
   activeVehicleId?: string;
+};
+
+export type EmailOutboxItem = {
+  id: string;
+  to: string;
+  subject: string;
+  kind: string;
+  text: string;
+  at: string;
+  status: "queued" | "sent" | "mock" | "failed";
 };
 
 export type Technician = {
@@ -261,6 +275,7 @@ export type AppState = {
   inbox: InboxItem[];
   notifications: Notification[];
   whatsappOutbox: WhatsAppOutboxItem[];
+  emailOutbox: EmailOutboxItem[];
   coupons: Coupon[];
   campaignNotif: boolean;
   couponNotif: boolean;

@@ -37,15 +37,25 @@ Akışlar:
 
 | Rol | Giriş |
 |-----|--------|
-| Müşteri | `/giris` · telefon `05551234567` |
+| Müşteri | `/giris` · telefon `05551234567` · şifre **`123456`** |
 | Yönetici | `/yonetici` · PIN **`2580`** |
 
-Veri: `localStorage` anahtarı `elit-detailing-v3`.
+Veri: `localStorage` anahtarı `elit-detailing-v4`.
+
+### Bildirim kanalları
+
+| Kanal | Ne gider |
+|-------|----------|
+| **E-posta** | Hoş geldin, şifre sıfırlama/değişiklik, hesap güncelleme, randevu/ödeme makbuzu, aksesuar sipariş özeti, kupon/kampanya |
+| **WhatsApp** | Check-in, süreç adımı, yol yardım durumu, ödeme linki, aksesuar hazır |
+| **Uygulama** | Taleplerim + panel bildirimleri |
+
+SMTP yoksa e-postalar mock’tur (`/api/email`). Canlı için `RESEND_API_KEY` + `EMAIL_FROM`.
 
 ## Sayfalar
 
-Müşteri: `/` `/hizmetler` `/randevu` `/yol-yardim` `/takip` `/aksesuar` `/kampanyalar` `/odeme/*` …
+Müşteri: `/` `/giris` `/profil` `/sifremi-unuttum` `/randevu` `/yol-yardim` `/takip` `/aksesuar` `/kampanyalar` `/odeme/*` …
 
-Yönetici: `/yonetici` — işlerde iyzico ödeme linki, gelirde tahsilat listesi.
+Yönetici: `/yonetici` → `/panel` — e-posta/WhatsApp kuyrukları, iyzico ödeme linki, CMS.
 
 Next.js + TypeScript + Tailwind v4 + shadcn/ui.
